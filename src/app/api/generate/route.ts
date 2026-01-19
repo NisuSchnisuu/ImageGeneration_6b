@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json();
+    const { prompt, modelType, aspectRatio } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -20,61 +20,38 @@ export async function POST(req: Request) {
       );
     }
 
-    // ACHTUNG: Die Imagen-Generierung über die 'google-genai' Lib funktioniert etwas anders
-    // als Text. Aktuell ist der direkteste Weg für Bilder oft noch REST oder spezifische Beta-Endpunkte.
-    // Aber wir versuchen es mit dem Standard-Modell-Aufruf, wie er für Multimodal gedacht ist.
-    // Falls das Modell 'imagen-3.0-generate-001' hier nicht direkt über generateContent
-    // Bilder zurückgibt (sondern nur Text), müssen wir den REST-Fallback nutzen.
+    const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Wir nutzen hier einen REST-Fallback, da die JS-SDK Unterstützung für Imagen
-    // manchmal hinterherhinkt oder spezifische Methoden braucht.
-    
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                instances: [
-                    {
-                        prompt: prompt,
-                    }
-                ],
-                parameters: {
-                    sampleCount: 1,
-                    // aspectRatio: "1:1" // Optional
-                }
-            })
-        }
-    );
+    // Auswahl des Modells basierend auf der Nutzerentscheidung
+    const selectedModel = modelType === "pro" 
+      ? "gemini-3-pro-image-preview" 
+      : "gemini-2.5-flash-image";
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Google API Error:", errorText);
+    const model = genAI.getGenerativeModel({ model: selectedModel });
+
+    // Wir rufen generateContent auf. 
+    // Hinweis: Die genauen Parameter-Strukturen für Seitenverhältnisse 
+    // können sich bei experimentellen Modellen noch ändern.
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    
+    const candidate = response.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+    const imagePart = parts.find(part => part.inlineData);
+
+    if (!imagePart || !imagePart.inlineData) {
         return NextResponse.json(
-            { error: `Google API Error: ${response.statusText}`, details: errorText },
-            { status: response.status }
-        );
-    }
-
-    const data = await response.json();
-    
-    // Die Struktur der Antwort für Imagen variiert je nach API Version.
-    // Wir extrahieren das Base64 Bild.
-    const predictions = data.predictions;
-    if (!predictions || predictions.length === 0) {
-         return NextResponse.json(
-            { error: "No image generated" },
+            { error: "No image data found. The model might have refused the prompt or is currently unavailable." },
             { status: 500 }
         );
     }
 
-    // Imagen gibt oft bytesBase64Encoded zurück
-    const imageBase64 = predictions[0].bytesBase64Encoded;
+    const imageBase64 = imagePart.inlineData.data;
+    const mimeType = imagePart.inlineData.mimeType || "image/png";
 
-    return NextResponse.json({ image: `data:image/png;base64,${imageBase64}` });
+    return NextResponse.json({ 
+        image: `data:${mimeType};base64,${imageBase64}` 
+    });
 
   } catch (error: any) {
     console.error("Server Error:", error);
