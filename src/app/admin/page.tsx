@@ -10,7 +10,8 @@ import {
     ChevronLeft, 
     Loader2, 
     ShieldCheck,
-    Download
+    Download,
+    Eye
 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
@@ -185,6 +186,13 @@ export default function AdminDashboard() {
                                                 </code>
                                             </td>
                                             <td className="px-6 py-4 text-right space-x-2">
+                                                <Link 
+                                                    href={`/admin/student/${student.id}`}
+                                                    className="inline-flex p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors align-middle"
+                                                    title="Details & Slots"
+                                                >
+                                                    <Eye className="w-5 h-5" />
+                                                </Link>
                                                 <button 
                                                     onClick={() => showQr(student)}
                                                     className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors"
