@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useState, useEffect, Suspense } from 'react';
 import { QrCode, Key, Loader2, ShieldCheck, Image as ImageIcon } from 'lucide-react';
 import StudentDashboard from '@/components/StudentDashboard';
@@ -8,17 +10,17 @@ import { supabase } from '@/lib/supabase';
 
 // Wir lagern die URL-Logik in eine Child-Komponente aus, um Suspense Warnungen zu vermeiden
 function AutoLoginHandler({ user, loading, onAutoLogin }: { user: any, loading: boolean, onAutoLogin: (code: string) => void }) {
-    // Client-side only check
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const params = new URLSearchParams(window.location.search);
-            const codeFromUrl = params.get('code');
-            if (codeFromUrl && !user && !loading) {
-                onAutoLogin(codeFromUrl);
-            }
-        }
-    }, [user, loading, onAutoLogin]);
-    return null;
+  // Client-side only check
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const codeFromUrl = params.get('code');
+      if (codeFromUrl && !user && !loading) {
+        onAutoLogin(codeFromUrl);
+      }
+    }
+  }, [user, loading, onAutoLogin]);
+  return null;
 }
 
 export default function Home() {
@@ -49,11 +51,11 @@ export default function Home() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-        
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
         setUser({ ...session.user, user_role: profile?.role, ...profile });
       }
       setIsInitializing(false);
@@ -62,44 +64,44 @@ export default function Home() {
   }, []);
 
   const handleAutoLogin = (code: string) => {
-      setAccessCode(code);
-      handleStudentLogin(code);
+    setAccessCode(code);
+    handleStudentLogin(code);
   };
 
   const handleStudentLogin = async (overrideCode?: string) => {
     const codeToUse = overrideCode || accessCode;
     if (!codeToUse.trim()) return;
-    
+
     setLoading(true);
     setError(null);
 
     try {
-        const email = `${codeToUse.toUpperCase()}@student.local`;
-        const password = codeToUse.toUpperCase();
+      const email = `${codeToUse.toUpperCase()}@student.local`;
+      const password = codeToUse.toUpperCase();
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-        if (error) throw new Error('Ungültiger Code.');
-        
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
+      if (error) throw new Error('Ungültiger Code.');
 
-        setUser({ ...data.user, user_role: profile?.role, ...profile });
-        
-        // URL cleanen falls nötig
-        if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
-            window.history.replaceState({}, '', '/');
-        }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      setUser({ ...data.user, user_role: profile?.role, ...profile });
+
+      // URL cleanen falls nötig
+      if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
+        window.history.replaceState({}, '', '/');
+      }
     } catch (err: any) {
-        setError(err.message);
+      setError(err.message);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -107,25 +109,25 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: adminEmail,
-            password: adminPassword,
-        });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: adminEmail,
+        password: adminPassword,
+      });
 
-        if (error) throw error;
-        
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
+      if (error) throw error;
 
-        setUser({ ...data.user, user_role: profile?.role, ...profile });
-        setShowAdminLogin(false);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      setUser({ ...data.user, user_role: profile?.role, ...profile });
+      setShowAdminLogin(false);
     } catch (err: any) {
-        setError(err.message);
+      setError(err.message);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -138,32 +140,32 @@ export default function Home() {
 
   if (user) {
     if (user.user_role === 'admin') {
-        return (
-            <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-black text-white relative">
-                 <div className="z-10 text-center space-y-6">
-                    <h1 className="text-3xl font-bold text-yellow-500">Hallo Admin!</h1>
-                    <div className="flex gap-4">
-                        <a href="/admin" className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold hover:bg-yellow-400 transition-colors flex items-center gap-2">
-                            <ShieldCheck className="w-5 h-5" />
-                            Zum Dashboard
-                        </a>
-                        <button onClick={handleLogout} className="bg-gray-800 text-white px-6 py-3 rounded-xl hover:bg-gray-700">
-                            Abmelden
-                        </button>
-                    </div>
-                 </div>
-            </main>
-        );
+      return (
+        <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-black text-white relative">
+          <div className="z-10 text-center space-y-6">
+            <h1 className="text-3xl font-bold text-yellow-500">Hallo Admin!</h1>
+            <div className="flex gap-4">
+              <Link href="/admin" className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold hover:bg-yellow-400 transition-colors flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5" />
+                Zum Dashboard
+              </Link>
+              <button onClick={handleLogout} className="bg-gray-800 text-white px-6 py-3 rounded-xl hover:bg-gray-700">
+                Abmelden
+              </button>
+            </div>
+          </div>
+        </main>
+      );
     }
 
     // HIER IST DIE ÄNDERUNG: StudentDashboard statt Generator
     return (
-        <main className="min-h-screen bg-black text-white relative overflow-y-auto">
-             <div className="fixed top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-800 via-black to-black opacity-50 z-0 pointer-events-none" />
-             <div className="relative z-10">
-                <StudentDashboard user={user} onLogout={handleLogout} />
-             </div>
-        </main>
+      <main className="min-h-screen bg-black text-white relative overflow-y-auto">
+        <div className="fixed top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-800 via-black to-black opacity-50 z-0 pointer-events-none" />
+        <div className="relative z-10">
+          <StudentDashboard user={user} onLogout={handleLogout} />
+        </div>
+      </main>
     );
   }
 
@@ -171,18 +173,18 @@ export default function Home() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-black text-white relative overflow-hidden">
       <Suspense fallback={null}>
-         <AutoLoginHandler user={user} loading={loading} onAutoLogin={handleAutoLogin} />
+        <AutoLoginHandler user={user} loading={loading} onAutoLogin={handleAutoLogin} />
       </Suspense>
 
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-black to-black opacity-50 z-0 pointer-events-none" />
-      
+
       <div className="z-10 w-full max-w-md space-y-8">
         <div className="text-center space-y-4">
-            <div className="inline-block p-4 bg-yellow-500/10 rounded-3xl border border-yellow-500/20 mb-2">
-                <ImageIcon className="w-12 h-12 text-yellow-500" />
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight">Nano Banana</h1>
-            <p className="text-gray-400">Gib deinen Zugangscode ein, um zu starten.</p>
+          <div className="inline-block p-4 bg-yellow-500/10 rounded-3xl border border-yellow-500/20 mb-2">
+            <ImageIcon className="w-12 h-12 text-yellow-500" />
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight">Nano Banana</h1>
+          <p className="text-gray-400">Gib deinen Zugangscode ein, um zu starten.</p>
         </div>
 
         <div className="space-y-4">
@@ -233,52 +235,52 @@ export default function Home() {
 
       {showAdminLogin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-2xl space-y-6">
-                <div className="flex items-center gap-3 text-yellow-500">
-                    <ShieldCheck className="w-8 h-8" />
-                    <h2 className="text-xl font-bold">Admin-Login</h2>
-                </div>
-                <div className="space-y-4">
-                    <input 
-                        type="email" 
-                        placeholder="E-Mail" 
-                        value={adminEmail}
-                        onChange={(e) => setAdminEmail(e.target.value)}
-                        className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-yellow-500 outline-none"
-                    />
-                    <input 
-                        type="password" 
-                        placeholder="Passwort" 
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                        className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-yellow-500 outline-none"
-                    />
-                    <button 
-                        onClick={handleAdminLogin}
-                        disabled={loading}
-                        className="w-full bg-yellow-500 text-black font-bold py-3 rounded-xl hover:bg-yellow-400 disabled:opacity-50 transition-all"
-                    >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Login'}
-                    </button>
-                    <button 
-                        onClick={() => setShowAdminLogin(false)}
-                        className="w-full text-gray-500 text-sm hover:text-white transition-colors"
-                    >
-                        Abbrechen
-                    </button>
-                </div>
+          <div className="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-2xl space-y-6">
+            <div className="flex items-center gap-3 text-yellow-500">
+              <ShieldCheck className="w-8 h-8" />
+              <h2 className="text-xl font-bold">Admin-Login</h2>
             </div>
+            <div className="space-y-4">
+              <input
+                type="email"
+                placeholder="E-Mail"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-yellow-500 outline-none"
+              />
+              <input
+                type="password"
+                placeholder="Passwort"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3 text-white focus:ring-1 focus:ring-yellow-500 outline-none"
+              />
+              <button
+                onClick={handleAdminLogin}
+                disabled={loading}
+                className="w-full bg-yellow-500 text-black font-bold py-3 rounded-xl hover:bg-yellow-400 disabled:opacity-50 transition-all"
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Login'}
+              </button>
+              <button
+                onClick={() => setShowAdminLogin(false)}
+                className="w-full text-gray-500 text-sm hover:text-white transition-colors"
+              >
+                Abbrechen
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {showQrScanner && (
-        <QrScanner 
-            onScanSuccess={(code) => {
-                setAccessCode(code);
-                setShowQrScanner(false);
-                handleStudentLogin(code);
-            }}
-            onClose={() => setShowQrScanner(false)}
+        <QrScanner
+          onScanSuccess={(code) => {
+            setAccessCode(code);
+            setShowQrScanner(false);
+            handleStudentLogin(code);
+          }}
+          onClose={() => setShowQrScanner(false)}
         />
       )}
     </main>
