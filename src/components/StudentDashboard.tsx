@@ -286,6 +286,8 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
         }
     };
 
+    const [safetyPopup, setSafetyPopup] = useState<{ isOpen: boolean, message: string, type: 'TEXT' | 'SAFETY' }>({ isOpen: false, message: '', type: 'SAFETY' });
+
     const handleGenerate = async () => {
         if (!prompt.trim() || slot.attempts_used >= 3) return;
 
@@ -308,42 +310,29 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             if (funcError) {
                 // Check if it's a safety block from our guardrail
                 if (funcError instanceof Error && funcError.message.includes("Edge Function returned a non-2xx status code")) {
-                    // Try to parse the body if possible, but supabase-js might swallow it depending on version.
-                    // Actually, for non-2xx, data might be null.
-                    // Let's rely on data if it's populated even on error?
-                    // Supabase functions invoke usually throws on non-2xx.
-                    // We might need to handle it differently.
-                    // Let's assume the error message MIGHT contain the body or we can't get it easily.
-
-                    // RETRY: Let's assume standard behavior: if it fails, we might not get the custom JSON easily without a custom fetch or updated client.
-                    // However, let's try to interpret the error. 
-                    // Actually, Supabase V2 client returns data: null, error: { message, context: Response }?
+                    // Fallthrough to standard error handling or try to see if context is available
+                    // But typically we catch the detailed error below if data is returned with 400.
                 }
                 throw funcError;
             }
 
-            // Guardrail Block Handling (if status was 200 but contained error, OR via 400 if client handles it)
-            // Note: If we returned 400, supabase client populates 'error'.
-            // If we returned 200 with error field, it's in 'data'.
+            // Check for explicit error fields in 200 responses or data from 400s if client allows
+            if (data && (data.error || data.isSafetyBlock)) {
+                const isSafety = data.isSafetyBlock;
+                const errorMsg = data.reason || data.error;
+                const blockType = data.blockType || 'SAFETY';
 
-            // Backend implementation returns 400.
-            // When Supabase receives 400, it sets 'error'. 
-            // We need to see if we can extract the JSON.
-            // If we cannot, we might need to update backend to return 200 for "Soft Blocks".
-
-            // To be SAFE and ensure we can show the message, let's check if 'data' is present?
-            // If 400, data is usually null.
-            // Let's try to use the 'data' field IF 400 returns it (some clients do).
-
-            if (data && data.isSafetyBlock) {
-                throw new Error(data.reason);
-            }
-
-            if (data && data.error) {
-                if (data.isSafetyBlock) {
-                    throw new Error(data.reason || data.error);
+                if (isSafety) {
+                    setSafetyPopup({
+                        isOpen: true,
+                        message: errorMsg,
+                        type: blockType
+                    });
+                    // Don't throw standard error, handled by popup
+                    return;
                 }
-                throw new Error(data.error);
+
+                throw new Error(errorMsg);
             }
 
             const webpBlob = await compressImage(data.image, 0.8);
@@ -362,6 +351,15 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             setPrompt('');
 
         } catch (err: any) {
+            // If it's a "known" safety error text but not caught above (e.g. via exception message)
+            if (err.message && (err.message.includes("Nutzunsrichtlinien") || err.message.includes("Herrn Maurer"))) {
+                setSafetyPopup({
+                    isOpen: true,
+                    message: err.message,
+                    type: err.message.includes("Herrn Maurer") ? 'TEXT' : 'SAFETY' // Guess type if missing
+                });
+                return;
+            }
             setError(err.message);
         } finally {
             setLoading(false);
@@ -539,6 +537,40 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                     </div>
                 )
             }
+
+            {/* Safety / Guard Popup */}
+            {safetyPopup.isOpen && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-gray-900 border-2 border-red-500/50 p-8 rounded-3xl max-w-lg text-center space-y-6 shadow-2xl relative overflow-hidden">
+                        {/* Background Effect */}
+                        <div className="absolute inset-0 bg-red-500/5 pointer-events-none" />
+
+                        <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto text-red-500 animate-bounce">
+                            {safetyPopup.type === 'TEXT' ? (
+                                <span className="text-4xl">🔤</span> // Or a specific Icon
+                            ) : (
+                                <AlertTriangle className="w-10 h-10" />
+                            )}
+                        </div>
+
+                        <h3 className="text-2xl font-bold text-white relative z-10">
+                            {safetyPopup.type === 'TEXT' ? 'Kein Text erlaubt!' : 'Hoppla!'}
+                        </h3>
+
+                        <p className="text-gray-300 text-lg leading-relaxed relative z-10 font-medium">
+                            {safetyPopup.message}
+                        </p>
+
+                        <button
+                            onClick={() => setSafetyPopup({ ...safetyPopup, isOpen: false })}
+                            className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-xl transition-all relative z-10 shadow-lg hover:scale-105 active:scale-95"
+                        >
+                            Verstanden
+                        </button>
+                    </div>
+                </div>
+            )}
+
         </div >
     );
 }
