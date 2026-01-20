@@ -35,6 +35,14 @@ Nano Banana ist eine Webanwendung für den Unterricht, die es Schülern ermögli
 4.  **Referenz:** Bilder können als Input (Image-to-Image) wieder an die KI gesendet werden (Download -> Base64 Konvertierung).
 5.  **Live-Status:** Wenn ein Schüler generiert, sieht der Lehrer im Admin-Dashboard ein blinkendes "Aktiv"-Signal.
 
+### Guardrail & Safety (Schutzmaßnahmen)
+- **Modell:** `gemini-2.5-flash` prüft jeden Prompt VOR der Bildgenerierung.
+- **Text-Restriction:**
+  - **Slot 0 (Titelbild):** Textanfragen (z.B. "Ein Schild mit 'Hallo'") sind erlaubt.
+  - **Slots 1-15:** Textanfragen werden blockiert. Es erscheint ein Popup ("Ich erstelle dir keinen Text...").
+- **Safety-Filter:** Blockiert Gewalt, Hassrede, Sexuelles etc. ("Ich kann das nicht erstellen...").
+- **Feedback:** Fehler werden als Popup im Frontend angezeigt und müssen manuell geschlossen werden.
+
 ## Projektstruktur
 - `src/app/api`: Legacy Backend-Logik (nun größtenteils in Edge Functions).
 - `supabase/functions`: Deno Edge Functions für `admin-create-student` und `bild-generieren`.

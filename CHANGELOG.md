@@ -22,6 +22,11 @@ Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokument
 ### Geändert
 - **QR-Code Scanner:** Komplettes Rewrite der Scanner-Komponente für bessere Cleanup-Logik (Fix für Kameras, die schwarz bleiben) und HTTPS-Warnhinweise.
 - **Aspect Ratio UI:** Neuer Button-Selector mit Vorschau-Icons. 2:3 Format speziell als "Ganze Seite" markiert.
+- **Safety & Guard:**
+  - Update auf `gemini-2.5-flash` für den Safety-Check.
+  - Spezifische Block-Logik: Text ist nur noch in Slot 0 erlaubt. Andernfalls erscheint ein Hinweis (Popup).
+  - Persistente Popups im Frontend bei Verstößen (Text oder Safety), die erst bestätigt werden müssen.
+  - Backend API (Edge Function) liefert nun granulare Fehlergründe (200 OK mit Fehler-JSON), damit der Client korrekt reagiert.
 
 ## [Unreleased] - 2026-01-19
 
