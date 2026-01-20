@@ -240,7 +240,8 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
     const [promptHistory, setPromptHistory] = useState<string[]>(slot.prompt_history || []);
 
     const [loading, setLoading] = useState(false);
-    const [aspectRatio, setAspectRatio] = useState('1:1');
+    // Standard für Slot 0 (Titelbild) ist 2:3, sonst 1:1
+    const [aspectRatio, setAspectRatio] = useState(slot.slot_number === 0 ? '2:3' : '1:1');
     const [referenceImage, setReferenceImage] = useState<string | null>(null);
     const [isProcessingRef, setIsProcessingRef] = useState(false);
 
@@ -337,8 +338,11 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
         }
     };
 
+    // Helper für Ratio-Vorschau
     const [arW, arH] = aspectRatio.split(':').map(Number);
     const arStyle = { aspectRatio: `${arW}/${arH}` };
+
+    const ratios = ['1:1', '2:3', '3:4', '4:3', '16:9', '9:16'];
 
     return (
         <div className="space-y-8">
@@ -384,20 +388,38 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             </div>
 
             <div className="space-y-6">
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-3 bg-gray-900 p-1.5 rounded-xl border border-gray-800 pl-4">
-                        <div className="w-6 flex items-center justify-center">
-                            <div className="border-2 border-gray-500 bg-gray-700 w-full rounded-sm transition-all duration-300" style={arStyle}></div>
-                        </div>
-                        <div className="h-6 w-px bg-gray-700 mx-1"></div>
-                        <select
-                            value={aspectRatio}
-                            onChange={e => setAspectRatio(e.target.value)}
-                            className="bg-transparent text-white text-xs font-bold outline-none cursor-pointer hover:text-yellow-500 transition-colors"
-                        >
-                            {['1:1', '16:9', '4:3', '9:16', '3:4'].map(ar => <option key={ar} value={ar} className="bg-gray-900">{ar}</option>)}
-                        </select>
-                    </div>
+                {/* Neuer Aspect Ratio Selector mit Buttons */}
+                <div className="flex flex-wrap gap-2">
+                    {ratios.map(r => {
+                        const isSelected = aspectRatio === r;
+                        const isTitleFormat = r === '2:3';
+                        const [w, h] = r.split(':').map(Number);
+
+                        return (
+                            <button
+                                key={r}
+                                onClick={() => setAspectRatio(r)}
+                                className={`
+                                    relative flex items-center gap-2 px-4 py-2 rounded-xl border transition-all
+                                    ${isSelected
+                                        ? (isTitleFormat ? 'bg-purple-600 border-purple-400 text-white shadow-lg shadow-purple-900/50' : 'bg-gray-800 border-yellow-500 text-white shadow-lg')
+                                        : 'bg-gray-900 border-gray-800 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                                    }
+                                `}
+                            >
+                                {/* Mini Preview Box */}
+                                <div className={`w-3 h-3 border rounded-sm ${isSelected ? 'border-current' : 'border-gray-600'}`} style={{ aspectRatio: `${w}/${h}` }} />
+
+                                <span className="font-bold text-xs">{r}</span>
+
+                                {isTitleFormat && (
+                                    <span className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ml-1 ${isSelected ? 'bg-white text-purple-600' : 'bg-gray-800 text-gray-500'}`}>
+                                        Ganze Seite
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {(referenceImage || isProcessingRef) && (
