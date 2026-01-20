@@ -95,7 +95,13 @@ Return JSON:
 
         const arSuffix = aspectRatio ? `\n\nEnsure the generated image has an aspect ratio of ${aspectRatio}.` : "";
 
-        parts[0].text += arSuffix;
+        let textRestriction = "";
+        // Wenn es NICHT Slot 0 (Titelbild) ist, verbieten wir Text strikt.
+        if (slotNumber !== 0) {
+            textRestriction = "\n\nIMPORTANT: Do NOT generate any text, letters, words, or numbers in the image. The image must be purely visual. If the user asks for text, ignore that part of the request. Visual Content ONLY.";
+        }
+
+        parts[0].text += arSuffix + textRestriction;
 
 
         const result = await model.generateContent({ contents: [{ role: "user", parts }] });
