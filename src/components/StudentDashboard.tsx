@@ -299,7 +299,8 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                 body: {
                     prompt,
                     aspectRatio,
-                    referenceImage
+                    referenceImage,
+                    slotNumber: slot.slot_number
                 },
             });
 
