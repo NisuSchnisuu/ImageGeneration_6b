@@ -57,8 +57,11 @@ Return JSON:
         try {
             const result = await guardModel.generateContent(guardPrompt);
             const response = await result.response;
-            const text = response.text();
-            console.log("Guardrail Output:", text);
+            let text = response.text();
+            console.log("Raw Guardrail Output:", text);
+
+            // Robust JSON Cleaning: Remove markdown code blocks if present
+            text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
             const guardResult = JSON.parse(text);
 
@@ -73,6 +76,12 @@ Return JSON:
             }
         } catch (e) {
             console.error("Guardrail check failed:", e);
+            // FAIL CLOSED: If the guardrail check crashes (e.g. JSON parse error), 
+            // we MUST stop and return an error instead of generating the image.
+            return new Response(JSON.stringify({ error: "Guardrail Validation Failed (Internal System Error)" }), {
+                status: 500,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
         }
         // --- GUARDRAIL CHECK ENDS ---
 
