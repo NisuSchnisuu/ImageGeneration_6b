@@ -256,18 +256,17 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
         setError(null);
 
         try {
-            const res = await fetch('/api/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const { data, error: funcError } = await supabase.functions.invoke('bild-generieren', {
+                body: {
                     prompt,
                     modelType,
                     aspectRatio,
                     referenceImage
-                }),
+                },
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
+
+            if (funcError) throw funcError;
+            if (data.error) throw new Error(data.error);
 
             const webpBlob = await compressImage(data.image, 0.8);
             const publicUrl = await uploadImage(userId, slot.slot_number, webpBlob);

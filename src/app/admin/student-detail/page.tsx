@@ -1,36 +1,41 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { adminUnlockSlot, ImageSlot, getSlots } from '@/lib/slots';
 import Link from 'next/link';
-import { 
-    ArrowLeft, 
-    Loader2, 
-    Lock, 
-    Unlock, 
-    Folder, 
-    FolderOpen, 
+import {
+    ArrowLeft,
+    Loader2,
+    Lock,
+    Unlock,
+    Folder,
+    FolderOpen,
     MessageSquare,
     ChevronDown,
     ChevronUp
 } from 'lucide-react';
 
-export default function StudentDetail({ params }: { params: Promise<{ id: string }> }) {
-    const unwrappedParams = use(params);
+function StudentDetailContent() {
+    const searchParams = useSearchParams();
+    const id = searchParams.get('id');
+
     const [student, setStudent] = useState<any>(null);
     const [slots, setSlots] = useState<ImageSlot[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!id) return;
+
         const load = async () => {
             const { data: studentData, error } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('id', unwrappedParams.id)
+                .eq('id', id)
                 .single();
-            
+
             if (studentData) {
                 setStudent(studentData);
                 const slotsData = await getSlots(studentData.id);
@@ -39,15 +44,15 @@ export default function StudentDetail({ params }: { params: Promise<{ id: string
             setLoading(false);
         };
         load();
-    }, [unwrappedParams.id]);
+    }, [id]);
 
     const handleUnlock = async (slot: ImageSlot) => {
         if (!confirm(`Slot ${slot.slot_number} wirklich zurücksetzen? Alle Fortschritte gehen verloren.`)) return;
-        
+
         try {
             await adminUnlockSlot(slot);
             // Refresh
-            const data = await getSlots(unwrappedParams.id);
+            const data = await getSlots(id!);
             setSlots(data);
         } catch (err) {
             alert("Fehler beim Entsperren.");
@@ -81,7 +86,7 @@ export default function StudentDetail({ params }: { params: Promise<{ id: string
                     {slots.map(slot => {
                         const isLocked = slot.is_locked || slot.attempts_used >= 3;
                         const hasPrompts = slot.prompt_history && slot.prompt_history.length > 0;
-                        
+
                         return (
                             <div key={slot.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
                                 <div className="p-4 flex items-center justify-between">
@@ -100,7 +105,7 @@ export default function StudentDetail({ params }: { params: Promise<{ id: string
 
                                     <div className="flex items-center gap-2">
                                         {isLocked && (
-                                            <button 
+                                            <button
                                                 onClick={() => handleUnlock(slot)}
                                                 className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-lg text-xs font-bold text-white transition-colors border border-gray-700"
                                             >
@@ -108,9 +113,9 @@ export default function StudentDetail({ params }: { params: Promise<{ id: string
                                                 Freigeben
                                             </button>
                                         )}
-                                        
+
                                         {hasPrompts && (
-                                            <button 
+                                            <button
                                                 onClick={() => setExpandedSlot(expandedSlot === slot.id ? null : slot.id)}
                                                 className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition-colors"
                                             >
@@ -143,5 +148,13 @@ export default function StudentDetail({ params }: { params: Promise<{ id: string
                 </div>
             </div>
         </main>
+    );
+}
+
+export default function StudentDetail() {
+    return (
+        <Suspense fallback={<div className="flex justify-center items-center h-screen bg-gray-950 text-yellow-500"><Loader2 className="w-10 h-10 animate-spin" /></div>}>
+            <StudentDetailContent />
+        </Suspense>
     );
 }

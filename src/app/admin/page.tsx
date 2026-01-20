@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
-    Users, 
-    UserPlus, 
-    QrCode, 
-    Trash2, 
-    ChevronLeft, 
-    Loader2, 
+import {
+    Users,
+    UserPlus,
+    QrCode,
+    Trash2,
+    ChevronLeft,
+    Loader2,
     ShieldCheck,
     Download,
     Eye
@@ -22,7 +22,7 @@ export default function AdminDashboard() {
     const [actionLoading, setActionLoading] = useState(false);
     const [newStudentName, setNewStudentName] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const [selectedQr, setSelectedQr] = useState<{name: string, url: string} | null>(null);
+    const [selectedQr, setSelectedQr] = useState<{ name: string, url: string } | null>(null);
 
     useEffect(() => {
         fetchStudents();
@@ -42,7 +42,7 @@ export default function AdminDashboard() {
     };
 
     const generateCode = () => {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; 
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         return Array.from({ length: 6 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
     };
 
@@ -50,22 +50,19 @@ export default function AdminDashboard() {
         if (!newStudentName.trim()) return;
         setActionLoading(true);
         setError(null);
-        
+
         const accessCode = generateCode();
-        
+
         try {
-            const res = await fetch('/api/admin/create-student', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    name: newStudentName, 
-                    accessCode: accessCode 
-                })
+            const { data, error: funcError } = await supabase.functions.invoke('admin-create-student', {
+                body: {
+                    name: newStudentName,
+                    accessCode: accessCode
+                }
             });
 
-            const data = await res.json();
-
-            if (!res.ok) throw new Error(data.error);
+            if (funcError) throw funcError;
+            if (data.error) throw new Error(data.error);
 
             setNewStudentName('');
             fetchStudents();
@@ -78,7 +75,7 @@ export default function AdminDashboard() {
 
     const deleteStudent = async (id: string) => {
         if (!confirm('Schüler wirklich löschen? Alle Bilder gehen verloren.')) return;
-        
+
         const { error } = await supabase
             .from('profiles')
             .delete()
@@ -93,7 +90,7 @@ export default function AdminDashboard() {
             // Wir bauen die volle URL für den automatischen Login
             // window.location.origin gibt uns 'http://localhost:3000' oder die echte Domain
             const loginUrl = `${window.location.origin}/?code=${student.access_code}`;
-            
+
             const url = await QRCode.toDataURL(loginUrl, { width: 300, margin: 2 });
             setSelectedQr({ name: student.full_name, url });
         } catch (err) {
@@ -127,14 +124,14 @@ export default function AdminDashboard() {
                         Neuen Schüler hinzufügen
                     </h2>
                     <div className="flex flex-col md:flex-row gap-4">
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             placeholder="Name des Schülers (z.B. Max Mustermann)"
                             value={newStudentName}
                             onChange={(e) => setNewStudentName(e.target.value)}
                             className="flex-grow bg-black border border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-1 focus:ring-yellow-500"
                         />
-                        <button 
+                        <button
                             onClick={addStudent}
                             disabled={actionLoading || !newStudentName}
                             className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-8 py-3 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
@@ -186,21 +183,21 @@ export default function AdminDashboard() {
                                                 </code>
                                             </td>
                                             <td className="px-6 py-4 text-right space-x-2">
-                                                <Link 
-                                                    href={`/admin/student/${student.id}`}
+                                                <Link
+                                                    href={`/admin/student-detail?id=${student.id}`}
                                                     className="inline-flex p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors align-middle"
                                                     title="Details & Slots"
                                                 >
                                                     <Eye className="w-5 h-5" />
                                                 </Link>
-                                                <button 
+                                                <button
                                                     onClick={() => showQr(student)}
                                                     className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors"
                                                     title="QR-Code anzeigen"
                                                 >
                                                     <QrCode className="w-5 h-5" />
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => deleteStudent(student.id)}
                                                     className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-red-500 transition-colors"
                                                     title="Löschen"
@@ -230,7 +227,7 @@ export default function AdminDashboard() {
                         <h3 className="text-black font-bold text-xl">{selectedQr.name}</h3>
                         <img src={selectedQr.url} alt="QR Code" className="w-full h-auto mx-auto" />
                         <p className="text-gray-900 font-mono text-2xl tracking-widest">{selectedQr.name}</p>
-                        <button 
+                        <button
                             onClick={() => setSelectedQr(null)}
                             className="bg-gray-900 text-white w-full py-3 rounded-xl font-bold hover:bg-black transition-colors"
                         >
