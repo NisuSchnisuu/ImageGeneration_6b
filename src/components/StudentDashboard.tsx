@@ -2,31 +2,32 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
-    getSlots, 
-    initializeSlots, 
-    updateSlotWithUrl, 
-    uploadImage, 
+import {
+    getSlots,
+    initializeSlots,
+    updateSlotWithUrl,
+    uploadImage,
     clearSlotImagesOnly,
-    ImageSlot 
+    ImageSlot
 } from '@/lib/slots';
 import { compressImage, fileToBase64, urlToBase64 } from '@/lib/imageUtils';
-import { 
-    Folder, 
-    Lock, 
-    Image as ImageIcon, 
-    Loader2, 
-    ArrowLeft, 
-    LogOut, 
-    Send, 
-    Download, 
-    Crown, 
-    Upload, 
-    X, 
-    Maximize2, 
+import {
+    Folder,
+    Lock,
+    Image as ImageIcon,
+    Loader2,
+    ArrowLeft,
+    LogOut,
+    Send,
+    Download,
+    Crown,
+    Upload,
+    X,
+    Maximize2,
     RefreshCw,
     AlertTriangle,
-    Eye
+    Eye,
+    Zap
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -55,7 +56,7 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
             getSlots(user.id).then(setSlots);
             return;
         }
-        
+
         // Szenario A: Slot voll -> Warnung vor finalem Löschen der Bilder
         setShowExitConfirm(true);
     };
@@ -91,14 +92,14 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                         Übersicht
                     </button>
                     <div className="bg-gray-900/80 px-4 py-2 rounded-full border border-gray-800 text-xs font-mono">
-                        Slot <span className="text-yellow-500">#{activeSlot.slot_number}</span> • 
+                        Slot <span className="text-yellow-500">#{activeSlot.slot_number}</span> •
                         Versuche <span className={activeSlot.attempts_used >= 3 ? "text-red-500" : "text-yellow-500"}>{activeSlot.attempts_used}/3</span>
                     </div>
                 </div>
-                
-                <EnhancedGenerator 
-                    slot={activeSlot} 
-                    userId={user.id} 
+
+                <EnhancedGenerator
+                    slot={activeSlot}
+                    userId={user.id}
                     onUpdate={(url, prompt, history, promptHistory) => {
                         const newAttempts = activeSlot.attempts_used + 1;
                         // State Update
@@ -123,10 +124,10 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                             </div>
                             <h3 className="text-2xl font-bold text-white">Mappe abschließen?</h3>
                             <p className="text-gray-400">
-                                Du hast alle 3 Versuche verbraucht. Wenn du jetzt gehst, wird die Mappe 
-                                <span className="text-red-500 font-bold mx-1">gesperrt</span> und die Bilder 
+                                Du hast alle 3 Versuche verbraucht. Wenn du jetzt gehst, wird die Mappe
+                                <span className="text-red-500 font-bold mx-1">gesperrt</span> und die Bilder
                                 <span className="text-red-500 font-bold mx-1">gelöscht</span>.
-                                <br/><br/>
+                                <br /><br />
                                 Hast du deine Ergebnisse gespeichert?
                             </p>
                             <div className="flex flex-col gap-3 pt-2">
@@ -165,7 +166,7 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                                 ${isLocked
                                     ? 'border-red-900/50 bg-red-950/20 cursor-not-allowed opacity-75'
                                     : slot.attempts_used > 0
-                                        ? 'border-yellow-500/30 bg-yellow-900/10' 
+                                        ? 'border-yellow-500/30 bg-yellow-900/10'
                                         : 'border-gray-800 bg-gray-900/20 hover:bg-gray-900 hover:border-gray-600'
                                 }
                             `}
@@ -177,7 +178,7 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                                     <Folder className={`w-8 h-8 ${slot.attempts_used > 0 ? 'text-yellow-500' : 'text-gray-600 group-hover:text-gray-300'}`} />
                                 )}
                             </div>
-                            
+
                             <div className="z-10 flex flex-col items-center">
                                 <span className={`font-bold text-lg ${isLocked ? 'text-red-500' : 'text-white'}`}>Mappe {slot.slot_number}</span>
                                 {isLocked ? (
@@ -198,18 +199,19 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
 
 function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId: string, onUpdate: (url: string, prompt: string, history: string[], promptHistory: string[]) => void }) {
     const [prompt, setPrompt] = useState('');
+    const [modelType, setModelType] = useState<'flash' | 'pro'>('flash');
     // Initialisiere History korrekt aus Props
     const [history, setHistory] = useState<string[]>(slot.history_urls || []);
     const [promptHistory, setPromptHistory] = useState<string[]>(slot.prompt_history || []);
-    
+
     const [loading, setLoading] = useState(false);
     const [aspectRatio, setAspectRatio] = useState('1:1');
     const [referenceImage, setReferenceImage] = useState<string | null>(null);
     const [isProcessingRef, setIsProcessingRef] = useState(false);
-    
+
     const [zoomImage, setZoomImage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const forceDownload = async (url: string, filename: string) => {
@@ -217,7 +219,7 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             const response = await fetch(url);
             const blob = await response.blob();
             const blobUrl = window.URL.createObjectURL(blob);
-            
+
             const link = document.createElement('a');
             link.href = blobUrl;
             link.download = filename;
@@ -257,11 +259,11 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             const res = await fetch('/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt, 
-                    modelType: 'pro', 
+                body: JSON.stringify({
+                    prompt,
+                    modelType,
                     aspectRatio,
-                    referenceImage 
+                    referenceImage
                 }),
             });
             const data = await res.json();
@@ -272,13 +274,13 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
 
             const newHistory = [...history, publicUrl];
             const newPromptHistory = [...promptHistory, prompt];
-            
+
             setHistory(newHistory);
             setPromptHistory(newPromptHistory);
-            
+
             // Callback mit allen Daten
             onUpdate(publicUrl, prompt, newHistory, newPromptHistory);
-            
+
             setReferenceImage(null);
             setPrompt('');
 
@@ -322,8 +324,8 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                                             </button>
                                         </div>
                                         {/* Download Button vergrößert & prominent */}
-                                        <button 
-                                            onClick={() => forceDownload(imgUrl, `entwurf-${idx+1}.webp`)} 
+                                        <button
+                                            onClick={() => forceDownload(imgUrl, `entwurf-${idx + 1}.webp`)}
                                             className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wide transition-colors mt-2"
                                         >
                                             <Download className="w-3 h-3" />
@@ -345,9 +347,21 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
 
             <div className="space-y-6">
                 <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2 bg-gray-900 px-4 py-2 rounded-xl border border-gray-800 text-yellow-500 font-bold text-xs uppercase tracking-wider">
-                        <Crown className="w-4 h-4" />
-                        Nano Banana Pro
+                    <div className="flex bg-gray-900 p-1 rounded-xl border border-gray-800">
+                        <button
+                            onClick={() => setModelType('flash')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider ${modelType === 'flash' ? 'bg-yellow-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <Zap className="w-4 h-4" />
+                            Flash
+                        </button>
+                        <button
+                            onClick={() => setModelType('pro')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider ${modelType === 'pro' ? 'bg-orange-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <Crown className="w-4 h-4" />
+                            Pro
+                        </button>
                     </div>
 
                     <div className="flex items-center gap-3 bg-gray-900 p-1.5 rounded-xl border border-gray-800 pl-4">
@@ -355,8 +369,8 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                             <div className="border-2 border-gray-500 bg-gray-700 w-full rounded-sm transition-all duration-300" style={arStyle}></div>
                         </div>
                         <div className="h-6 w-px bg-gray-700 mx-1"></div>
-                        <select 
-                            value={aspectRatio} 
+                        <select
+                            value={aspectRatio}
                             onChange={e => setAspectRatio(e.target.value)}
                             className="bg-transparent text-white text-xs font-bold outline-none cursor-pointer hover:text-yellow-500 transition-colors"
                         >
@@ -399,7 +413,7 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                                 <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-gray-400 hover:text-white transition-colors" title="Referenzbild hochladen">
                                     <Upload className="w-5 h-5" />
                                 </button>
-                                <button 
+                                <button
                                     onClick={handleGenerate}
                                     disabled={loading || !prompt.trim()}
                                     className="p-3 bg-yellow-500 hover:bg-yellow-400 text-black rounded-xl disabled:opacity-50 transition-all shadow-lg shadow-yellow-500/20 flex items-center gap-2 font-bold px-4"
@@ -423,7 +437,7 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                         <div className="relative flex-grow w-full max-w-5xl h-[80vh]">
                             <Image src={zoomImage} alt="Zoom" fill className="object-contain" unoptimized />
                         </div>
-                        <button 
+                        <button
                             onClick={() => forceDownload(zoomImage, `entwurf-zoom.webp`)}
                             className="flex items-center gap-3 bg-yellow-500 text-black px-8 py-4 rounded-2xl font-bold hover:bg-yellow-400 shadow-xl hover:scale-105 transition-all text-lg"
                         >
