@@ -288,6 +288,20 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
 
     const handleGenerate = async () => {
         if (!prompt.trim() || slot.attempts_used >= 3) return;
+
+        // --- TEXT GUARDRAIL (Client-Side) ---
+        // Wenn nicht Slot 0, prüfen wir auf verbotene Wörter
+        if (slot.slot_number !== 0) {
+            const forbidden = ['text', 'schrift', 'schreib', 'wort', 'wörter', 'buchstabe', 'satz', 'name', 'titel', 'label', 'sign'];
+            const lowerPrompt = prompt.toLowerCase();
+            const foundForbidden = forbidden.find(word => lowerPrompt.includes(word));
+
+            if (foundForbidden) {
+                setError(`STOP! 🛑\nIch erstelle hier keinen Text auf Bildern.\nDas kannst du selbst viel besser! ;D\n\n(Verbotenes Wort: "${foundForbidden}")`);
+                return;
+            }
+        }
+
         setLoading(true);
         setError(null);
 
@@ -305,6 +319,18 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             });
 
             if (funcError) throw funcError;
+
+            // --- SAFETY / BLOCK HANDLING ---
+            if (data.error && data.error.startsWith('BLOCKED:')) {
+                const reason = data.error.replace('BLOCKED:', '').trim();
+                let userMessage = "Die KI hat deine Anfrage blockiert.";
+
+                if (reason.includes('SAFETY')) userMessage = "Upps! 🛑\nDie KI findet deine Anfrage unsicher (Gewalt, Personen, etc.).\nBitte formuliere sie freundlicher.";
+                if (reason.includes('RECITATION')) userMessage = "Hoppla! ©\nDas sieht nach urheberrechtlich geschütztem Material aus (z.B. bekannte Figuren).\nVersuche etwas Eigenes!";
+
+                throw new Error(userMessage);
+            }
+
             if (data.error) throw new Error(data.error);
 
             const webpBlob = await compressImage(data.image, 0.8);

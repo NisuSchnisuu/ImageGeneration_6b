@@ -62,11 +62,34 @@ serve(async (req) => {
         const result = await model.generateContent({ contents: [{ role: "user", parts }] });
         const response = await result.response;
 
+        // Check for Safety Blocks
+        if (response.promptFeedback?.blockReason) {
+            return new Response(JSON.stringify({ error: `BLOCKED: ${response.promptFeedback.blockReason}` }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200, // Return 200 so frontend can parse JSON easily, but with error field
+            });
+        }
+
         const candidate = response.candidates?.[0];
+
+        if (candidate?.finishReason === 'SAFETY') {
+            return new Response(JSON.stringify({ error: "BLOCKED: SAFETY_VIOLATION" }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200,
+            });
+        }
+
+        if (candidate?.finishReason === 'RECITATION') {
+            return new Response(JSON.stringify({ error: "BLOCKED: RECITATION" }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200,
+            });
+        }
+
         const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
 
         if (!imagePart || !imagePart.inlineData) {
-            throw new Error("No image generated.");
+            throw new Error("No image generated (Unknown Reason).");
         }
 
         const imageBase64 = `data:${imagePart.inlineData.mimeType || 'image/png'};base64,${imagePart.inlineData.data}`;
