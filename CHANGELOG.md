@@ -2,6 +2,27 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+## [Released] - 2026-01-20
+
+### Hinzugefügt
+- **Dashboard Upgrade:**
+  - **Titelbild Slot:** Neuer Slot 0 ("Titelbild") mit automatischer 2:3 Formatauswahl.
+  - **Visuelle Mappen:** Karten-Design mit Bildvorschau statt simpler Ordner-Icons.
+  - **Global Lock:** Der Lehrer kann das System global sperren ("Pausentaste"), was Schüler sofort ausloggt.
+  - **Live-Status:** Lehrkraft sieht live ("AKTIV"), wenn ein Schüler gerade generiert.
+- **Admin Features:**
+  - **PDF Export:** Generierung aller Schüler-QR-Codes als druckbares PDF.
+  - **Sichere Zugangscodes:** Neue Codes sind länger (`XXXX-XXXX-XXXX`) für mehr Sicherheit vor Raten.
+  - **Detail-Galerie:** Admin sieht nun *alle* generierten Bilder eines Schülers in einer Galerie (auch von geschlossenen Slots).
+- **DB & Backend:**
+  - Umzug der `admin-create-student` und `bild-generieren` Funktionen auf Supabase Edge Functions für bessere Performance und Isolation.
+  - Einführung der `app_settings` Tabelle für globale Konfigurationen.
+  - Constraint-Fix in der Datenbank, um Slot 0 zu ermöglichen.
+
+### Geändert
+- **QR-Code Scanner:** Komplettes Rewrite der Scanner-Komponente für bessere Cleanup-Logik (Fix für Kameras, die schwarz bleiben) und HTTPS-Warnhinweise.
+- **Aspect Ratio UI:** Neuer Button-Selector mit Vorschau-Icons. 2:3 Format speziell als "Ganze Seite" markiert.
+
 ## [Unreleased] - 2026-01-19
 
 ### Hinzugefügt

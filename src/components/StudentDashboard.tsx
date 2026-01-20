@@ -349,8 +349,10 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             <div className="grid grid-cols-3 gap-4 h-56"> {/* Höhe angepasst für größere Boxen */}
                 {[0, 1, 2].map((idx) => {
                     const imgUrl = history[idx];
+                    const isAllocatedSlot = loading && idx === history.length;
+
                     return (
-                        <div key={idx} className="relative group rounded-xl overflow-hidden bg-gray-950 border border-gray-800 transition-all hover:border-gray-600">
+                        <div key={idx} className={`relative group rounded-xl overflow-hidden bg-gray-950 border transition-all ${isAllocatedSlot ? 'border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)]' : 'border-gray-800 hover:border-gray-600'}`}>
                             {imgUrl ? (
                                 <>
                                     <div className="relative w-full h-full">
@@ -375,6 +377,11 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                                         </button>
                                     </div>
                                 </>
+                            ) : isAllocatedSlot ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/50">
+                                    <Loader2 className="w-8 h-8 text-yellow-500 animate-spin mb-2" />
+                                    <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest animate-pulse">Generiere...</span>
+                                </div>
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center opacity-10">
                                     <div className="w-12 h-12 rounded-full border-2 border-dashed border-white flex items-center justify-center">
