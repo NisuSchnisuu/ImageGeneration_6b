@@ -34,24 +34,23 @@ serve(async (req) => {
         const genAI = new GoogleGenerativeAI(apiKey);
 
         // --- GUARDRAIL CHECK STARTS HERE ---
-        const guardModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const guardModel = genAI.getGenerativeModel({
+            model: "gemini-1.5-flash",
+            generationConfig: { responseMimeType: "application/json" }
+        });
         const guardPrompt = `
-You are a content safety filter for a strictly visual image generation tool for students.
-Analyze the User Prompt: "${prompt}"
+You are a barrier for an image generation tool.
+User Prompt: "${prompt}"
+Slot: ${slotNumber} (0=Title, others=Content)
 
-Context:
-- The user is generating an image in Slot ${slotNumber}.
+Rules:
+1. SAFETY: Strict blocking of violence, hate, sexual content, self-harm.
+2. TEXT: If Slot!=0, NO request for text, letters, signs, words.
 
-Rules for "NOT ALLOWED":
-1. Safety Violation: Use standard strict safety guidelines (no violence, hate speech, sexual content, self-harm, harassment).
-2. Text Restriction: If Slot is NOT 0, the user MUST NOT ask for text, words, letters, signs, labels, or numbers to be visible in the image. (Example: "A dog holding a sign saying hello" -> VIOLATION if Slot != 0. "A dog" -> PERMITTED).
-
-If the prompt violates any rule, you must block it.
-
-Return a JSON object with this structure:
+Return JSON:
 {
   "allowed": boolean,
-  "reason": "string" // IF allowed is false: Write a friendly error message in German explaining why. For text violations say something like "Ich erstelle hier keinen Text auf Bildern, das kannst du selbst besser! ;D". For safety violations be clear but polite.
+  "reason": "string" // German error message if allowed=false.
 }
 `;
 
@@ -59,9 +58,9 @@ Return a JSON object with this structure:
             const result = await guardModel.generateContent(guardPrompt);
             const response = await result.response;
             const text = response.text();
-            // Parse JSON (handle potential markdown blocks)
-            const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-            const guardResult = JSON.parse(jsonStr);
+            console.log("Guardrail Output:", text);
+
+            const guardResult = JSON.parse(text);
 
             if (!guardResult.allowed) {
                 return new Response(JSON.stringify({
@@ -74,7 +73,6 @@ Return a JSON object with this structure:
             }
         } catch (e) {
             console.error("Guardrail check failed:", e);
-            // We proceed if guardrail fails to avoid blocking system due to glitch
         }
         // --- GUARDRAIL CHECK ENDS ---
 
