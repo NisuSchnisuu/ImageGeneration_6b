@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
+    const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "imagen-3.0-generate-001";
     const model = genAI.getGenerativeModel({ model: selectedModel });
 
     // Vorbereitung der Parts für die KI
@@ -23,17 +23,17 @@ export async function POST(req: Request) {
 
     // Wenn ein Referenzbild vorhanden ist, fügen wir es hinzu
     if (referenceImage) {
-        // Wir entfernen den Header (data:image/png;base64,) falls vorhanden
-        const base64Data = referenceImage.split(',')[1] || referenceImage;
-        parts.push({
-            inlineData: {
-                data: base64Data,
-                mimeType: "image/png" // Oder entsprechend anpassen
-            }
-        });
-        
-        // Wir fügen eine Anweisung hinzu, dass das Bild als Referenz dienen soll
-        parts[0].text = `Using the attached image as a visual reference, generate a new image based on this prompt: ${prompt}`;
+      // Wir entfernen den Header (data:image/png;base64,) falls vorhanden
+      const base64Data = referenceImage.split(',')[1] || referenceImage;
+      parts.push({
+        inlineData: {
+          data: base64Data,
+          mimeType: "image/png" // Oder entsprechend anpassen
+        }
+      });
+
+      // Wir fügen eine Anweisung hinzu, dass das Bild als Referenz dienen soll
+      parts[0].text = `Using the attached image as a visual reference, generate a new image based on this prompt: ${prompt}`;
     }
 
     // Hinweis: Aspect Ratio wird bei Gemini Image Modellen oft über zusätzliche 
@@ -44,16 +44,16 @@ export async function POST(req: Request) {
 
     const result = await model.generateContent({ contents: [{ role: "user", parts }] });
     const response = await result.response;
-    
+
     const candidate = response.candidates?.[0];
     const imagePart = candidate?.content?.parts?.find(part => part.inlineData);
 
     if (!imagePart || !imagePart.inlineData) {
-        return NextResponse.json({ error: "No image generated." }, { status: 500 });
+      return NextResponse.json({ error: "No image generated." }, { status: 500 });
     }
 
-    return NextResponse.json({ 
-        image: `data:${imagePart.inlineData.mimeType || 'image/png'};base64,${imagePart.inlineData.data}` 
+    return NextResponse.json({
+      image: `data:${imagePart.inlineData.mimeType || 'image/png'};base64,${imagePart.inlineData.data}`
     });
 
   } catch (error: any) {

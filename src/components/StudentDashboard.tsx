@@ -199,7 +199,7 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
 
 function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId: string, onUpdate: (url: string, prompt: string, history: string[], promptHistory: string[]) => void }) {
     const [prompt, setPrompt] = useState('');
-    const [modelType, setModelType] = useState<'flash' | 'pro'>('flash');
+    const [modelType, setModelType] = useState<'imagen' | 'pro'>('imagen');
     // Initialisiere History korrekt aus Props
     const [history, setHistory] = useState<string[]>(slot.history_urls || []);
     const [promptHistory, setPromptHistory] = useState<string[]>(slot.prompt_history || []);
@@ -349,11 +349,11 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="flex bg-gray-900 p-1 rounded-xl border border-gray-800">
                         <button
-                            onClick={() => setModelType('flash')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider ${modelType === 'flash' ? 'bg-yellow-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                            onClick={() => setModelType('imagen')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider ${modelType === 'imagen' ? 'bg-yellow-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
                         >
                             <Zap className="w-4 h-4" />
-                            Flash
+                            Imagen 3
                         </button>
                         <button
                             onClick={() => setModelType('pro')}
