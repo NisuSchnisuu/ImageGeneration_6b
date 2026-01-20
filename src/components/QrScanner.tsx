@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { useEffect, useRef, useState } from 'react';
+import { Html5Qrcode, Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 interface QrScannerProps {
   onScanSuccess: (decodedText: string) => void;
@@ -9,33 +10,41 @@ interface QrScannerProps {
 }
 
 export default function QrScanner({ onScanSuccess, onClose }: QrScannerProps) {
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    scannerRef.current = new Html5QrcodeScanner(
-      "qr-reader",
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      /* verbose= */ false
-    );
+    // Kleiner Timeout um sicherzustellen, dass das DOM Element da ist
+    const timer = setTimeout(() => {
+      const scanner = new Html5QrcodeScanner(
+        "qr-reader",
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          showTorchButtonIfSupported: true
+        },
+              /* verbose= */ false
+      );
 
-    scannerRef.current.render(
-      (decodedText) => {
-        // Bei Erfolg Scanner stoppen und Text zurückgeben
-        if (scannerRef.current) {
-            scannerRef.current.clear();
+      scanner.render(
+        (decodedText) => {
+          scanner.clear();
+          onScanSuccess(decodedText);
+        },
+        (errorMessage) => {
+          // ignore parse errors
         }
-        onScanSuccess(decodedText);
-      },
-      (error) => {
-        // Wir ignorieren normale Scan-Fehler (wenn kein QR gefunden wurde)
-      }
-    );
+      );
 
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
-      }
-    };
+      // Cleanup function
+      return () => {
+        scanner.clear().catch(error => {
+          console.error("Failed to clear html5-qrcode scanner. ", error);
+        });
+      };
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [onScanSuccess]);
 
   return (
@@ -45,9 +54,21 @@ export default function QrScanner({ onScanSuccess, onClose }: QrScannerProps) {
           <h3 className="font-bold">QR-Code scannen</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white">Schließen</button>
         </div>
-        <div id="qr-reader" className="w-full"></div>
-        <div className="p-4 text-center text-xs text-gray-500">
+
+        <div className="p-4 bg-black min-h-[300px] flex flex-col justify-center">
+          <div id="qr-reader" className="w-full"></div>
+          {error && (
+            <div className="text-red-400 text-sm text-center mt-4">
+              <AlertTriangle className="w-5 h-5 mx-auto mb-2" />
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 text-center text-xs text-gray-500 bg-gray-900">
           Halte den QR-Code deines Lehrers vor die Kamera.
+          <br />
+          Stelle sicher, dass du Kamerazugriff erlaubt hast.
         </div>
       </div>
     </div>
