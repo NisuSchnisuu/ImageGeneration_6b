@@ -13,7 +13,8 @@ serve(async (req) => {
     }
 
     try {
-        const serviceKey = Deno.env.get('SERVICE_ROLE_KEY');
+        // Check for auto-injected key first, then user-defined fallback
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY');
         const url = Deno.env.get('SUPABASE_URL'); // Or NEXT_PUBLIC_SUPABASE_URL if passed, but usually env var in Function
 
         if (!serviceKey || !url) {
