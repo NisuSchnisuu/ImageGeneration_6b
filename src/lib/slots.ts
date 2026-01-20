@@ -6,7 +6,7 @@ export interface ImageSlot {
     slot_number: number;
     attempts_used: number;
     last_image_base64: string | null; // URL des letzten Bildes
-    history_urls: string[]; 
+    history_urls: string[];
     prompt_history: string[];
     last_prompt: string | null;
     is_locked: boolean;
@@ -38,14 +38,14 @@ export async function getSlots(userId: string) {
         .select('*')
         .eq('user_id', userId)
         .order('slot_number', { ascending: true });
-    
+
     if (error) throw error;
     return data as ImageSlot[];
 }
 
 export async function uploadImage(userId: string, slotNumber: number, blob: Blob): Promise<string> {
     const fileName = `${userId}/slot-${slotNumber}/${Date.now()}.webp`;
-    
+
     const { data, error } = await supabase.storage
         .from('images')
         .upload(fileName, blob, {
@@ -80,17 +80,16 @@ async function deleteFilesInStorage(userId: string, slotNumber: number) {
  * Update nach Generierung: Speichert Bild-URL und Prompt in History
  */
 export async function updateSlotWithUrl(
-    slotId: string, 
-    imageUrl: string, 
-    prompt: string, 
-    newAttemptsCount: number, 
-    currentImageHistory: string[],
-    currentPromptHistory: string[]
+    slotId: string,
+    imageUrl: string,
+    prompt: string,
+    newAttemptsCount: number,
+    updatedImageHistory: string[],
+    updatedPromptHistory: string[]
 ) {
     const isLocked = newAttemptsCount >= 3;
-    const updatedImageHistory = [...currentImageHistory, imageUrl];
-    const updatedPromptHistory = [...currentPromptHistory, prompt];
-    
+    // We expect the fully updated arrays to be passed
+
     const { error } = await supabase
         .from('image_slots')
         .update({

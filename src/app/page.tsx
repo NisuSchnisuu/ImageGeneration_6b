@@ -96,7 +96,7 @@ export default function Home() {
 
       // URL cleanen falls nötig
       if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
-        window.history.replaceState({}, '', '/');
+        window.history.replaceState({}, '', window.location.pathname);
       }
     } catch (err: any) {
       setError(err.message);
