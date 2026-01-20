@@ -96,7 +96,7 @@ Return JSON in this format:
                     blockType: clientBlockType,
                     isSafetyBlock: true
                 }), {
-                    status: 400,
+                    status: 200, // Return 200 so client receives 'data' with our custom fields instead of throwing
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 });
             }
