@@ -88,8 +88,10 @@ export default function AdminDashboard() {
     const showQr = async (student: any) => {
         try {
             // Wir bauen die volle URL für den automatischen Login
-            // window.location.origin gibt uns 'http://localhost:3000' oder die echte Domain
-            const loginUrl = `${window.location.origin}/?code=${student.access_code}`;
+            // Wir müssen 'window.location.pathname' nutzen, um auch Projekt-Unterordner (GitHub Pages) zu unterstützen
+            const path = window.location.pathname; // z.B. "/repo-name/admin" oder "/admin"
+            const basePath = path.substring(0, path.lastIndexOf('/admin'));
+            const loginUrl = `${window.location.origin}${basePath}/?code=${student.access_code}`;
 
             const url = await QRCode.toDataURL(loginUrl, { width: 300, margin: 2 });
             setSelectedQr({ name: student.full_name, url });
