@@ -32,7 +32,8 @@ serve(async (req) => {
 
         // Initialize Gemini (using same logic as before but with Deno imports)
         const genAI = new GoogleGenerativeAI(apiKey);
-        const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "imagen-3.0-generate-001";
+        // Always use Gemini 3 Pro
+        const selectedModel = "gemini-3-pro-image-preview";
         const model = genAI.getGenerativeModel({ model: selectedModel });
 
         const parts: any[] = [{ text: prompt }];

@@ -26,8 +26,7 @@ import {
     Maximize2,
     RefreshCw,
     AlertTriangle,
-    Eye,
-    Zap
+    Eye
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -199,7 +198,7 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
 
 function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId: string, onUpdate: (url: string, prompt: string, history: string[], promptHistory: string[]) => void }) {
     const [prompt, setPrompt] = useState('');
-    const [modelType, setModelType] = useState<'imagen' | 'pro'>('imagen');
+
     // Initialisiere History korrekt aus Props
     const [history, setHistory] = useState<string[]>(slot.history_urls || []);
     const [promptHistory, setPromptHistory] = useState<string[]>(slot.prompt_history || []);
@@ -259,7 +258,6 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             const { data, error: funcError } = await supabase.functions.invoke('bild-generieren', {
                 body: {
                     prompt,
-                    modelType,
                     aspectRatio,
                     referenceImage
                 },
@@ -346,23 +344,6 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
 
             <div className="space-y-6">
                 <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex bg-gray-900 p-1 rounded-xl border border-gray-800">
-                        <button
-                            onClick={() => setModelType('imagen')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider ${modelType === 'imagen' ? 'bg-yellow-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                        >
-                            <Zap className="w-4 h-4" />
-                            Imagen 3
-                        </button>
-                        <button
-                            onClick={() => setModelType('pro')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider ${modelType === 'pro' ? 'bg-orange-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                        >
-                            <Crown className="w-4 h-4" />
-                            Pro
-                        </button>
-                    </div>
-
                     <div className="flex items-center gap-3 bg-gray-900 p-1.5 rounded-xl border border-gray-800 pl-4">
                         <div className="w-6 flex items-center justify-center">
                             <div className="border-2 border-gray-500 bg-gray-700 w-full rounded-sm transition-all duration-300" style={arStyle}></div>
@@ -427,25 +408,27 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                 {error && <p className="text-red-400 text-xs text-center border border-red-900/50 p-2 rounded-lg bg-red-950/30">{error}</p>}
             </div>
 
-            {zoomImage && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 md:p-12 animate-in fade-in backdrop-blur-md" onClick={() => setZoomImage(null)}>
-                    <div className="relative w-full h-full flex flex-col items-center justify-center gap-6" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setZoomImage(null)} className="absolute top-4 right-4 p-4 text-white hover:text-yellow-500 transition-colors z-50">
-                            <X className="w-10 h-10" />
-                        </button>
-                        <div className="relative flex-grow w-full max-w-5xl h-[80vh]">
-                            <Image src={zoomImage} alt="Zoom" fill className="object-contain" unoptimized />
+            {
+                zoomImage && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 md:p-12 animate-in fade-in backdrop-blur-md" onClick={() => setZoomImage(null)}>
+                        <div className="relative w-full h-full flex flex-col items-center justify-center gap-6" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => setZoomImage(null)} className="absolute top-4 right-4 p-4 text-white hover:text-yellow-500 transition-colors z-50">
+                                <X className="w-10 h-10" />
+                            </button>
+                            <div className="relative flex-grow w-full max-w-5xl h-[80vh]">
+                                <Image src={zoomImage} alt="Zoom" fill className="object-contain" unoptimized />
+                            </div>
+                            <button
+                                onClick={() => forceDownload(zoomImage, `entwurf-zoom.webp`)}
+                                className="flex items-center gap-3 bg-yellow-500 text-black px-8 py-4 rounded-2xl font-bold hover:bg-yellow-400 shadow-xl hover:scale-105 transition-all text-lg"
+                            >
+                                <Download className="w-6 h-6" />
+                                Downloaden
+                            </button>
                         </div>
-                        <button
-                            onClick={() => forceDownload(zoomImage, `entwurf-zoom.webp`)}
-                            className="flex items-center gap-3 bg-yellow-500 text-black px-8 py-4 rounded-2xl font-bold hover:bg-yellow-400 shadow-xl hover:scale-105 transition-all text-lg"
-                        >
-                            <Download className="w-6 h-6" />
-                            Downloaden
-                        </button>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
