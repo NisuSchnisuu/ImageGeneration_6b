@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { adminUnlockSlot, ImageSlot, getSlots } from '@/lib/slots';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
     ArrowLeft,
     Loader2,
@@ -14,7 +15,9 @@ import {
     FolderOpen,
     MessageSquare,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Activity,
+    ImageIcon
 } from 'lucide-react';
 
 function StudentDetailContent() {
@@ -30,30 +33,46 @@ function StudentDetailContent() {
         if (!id) return;
 
         const load = async () => {
-            const { data: studentData, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', id)
-                .single();
+            // Initial Load
+            await fetchData();
 
-            if (studentData) {
-                setStudent(studentData);
-                const slotsData = await getSlots(studentData.id);
-                setSlots(slotsData);
-            }
-            setLoading(false);
+            // Realtime Updates
+            const channel = supabase
+                .channel(`student_detail_${id}`)
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${id}` }, (payload) => {
+                    setStudent((prev: any) => ({ ...prev, ...payload.new }));
+                })
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'image_slots', filter: `user_id=eq.${id}` }, () => {
+                    fetchSlots();
+                })
+                .subscribe();
+
+            return () => { supabase.removeChannel(channel); };
         };
         load();
     }, [id]);
+
+    const fetchData = async () => {
+        const { data: studentData } = await supabase.from('profiles').select('*').eq('id', id).single();
+        if (studentData) {
+            setStudent(studentData);
+            await fetchSlots();
+        }
+        setLoading(false);
+    };
+
+    const fetchSlots = async () => {
+        if (!id) return;
+        const slotsData = await getSlots(id);
+        setSlots(slotsData);
+    };
 
     const handleUnlock = async (slot: ImageSlot) => {
         if (!confirm(`Slot ${slot.slot_number} wirklich zurücksetzen? Alle Fortschritte gehen verloren.`)) return;
 
         try {
             await adminUnlockSlot(slot);
-            // Refresh
-            const data = await getSlots(id!);
-            setSlots(data);
+            fetchSlots();
         } catch (err) {
             alert("Fehler beim Entsperren.");
         }
@@ -71,13 +90,23 @@ function StudentDetailContent() {
         <main className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
             <div className="max-w-5xl mx-auto space-y-8">
                 {/* Header */}
-                <div className="flex items-center gap-4">
-                    <Link href="/admin" className="p-2 hover:bg-gray-900 rounded-full transition-colors">
-                        <ArrowLeft className="w-6 h-6" />
-                    </Link>
-                    <div>
-                        <h1 className="text-2xl font-bold">{student.full_name}</h1>
-                        <p className="text-gray-500 text-sm font-mono">{student.access_code}</p>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link href="/admin" className="p-2 hover:bg-gray-900 rounded-full transition-colors">
+                            <ArrowLeft className="w-6 h-6" />
+                        </Link>
+                        <div>
+                            <h1 className="text-2xl font-bold flex items-center gap-3">
+                                {student.full_name}
+                                {student.is_generating && (
+                                    <span className="text-green-400 bg-green-900/20 border border-green-900/50 px-3 py-1 rounded-full text-xs uppercase tracking-widest font-bold flex items-center gap-2 animate-pulse">
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        Generiert...
+                                    </span>
+                                )}
+                            </h1>
+                            <p className="text-gray-500 text-sm font-mono mt-1">Code: {student.access_code}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -86,60 +115,90 @@ function StudentDetailContent() {
                     {slots.map(slot => {
                         const isLocked = slot.is_locked || slot.attempts_used >= 3;
                         const hasPrompts = slot.prompt_history && slot.prompt_history.length > 0;
+                        const hasImages = slot.history_urls && slot.history_urls.length > 0;
 
                         return (
-                            <div key={slot.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-                                <div className="p-4 flex items-center justify-between">
+                            <div key={slot.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden transition-all hover:border-gray-700">
+                                <div className="p-5 flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className={`p-3 rounded-full ${isLocked ? 'bg-red-900/20 text-red-500' : 'bg-gray-800 text-yellow-500'}`}>
+                                        <div className={`p-4 rounded-xl ${isLocked ? 'bg-red-900/10 text-red-500 border border-red-900/20' : 'bg-gray-800 text-yellow-500 border border-gray-700'}`}>
                                             {isLocked ? <Lock className="w-6 h-6" /> : <FolderOpen className="w-6 h-6" />}
                                         </div>
                                         <div>
-                                            <h3 className="font-bold">Mappe {slot.slot_number}</h3>
-                                            <div className="flex gap-3 text-xs text-gray-400 mt-1">
-                                                <span>Versuche: {slot.attempts_used}/3</span>
-                                                {slot.last_image_base64 && <span className="text-green-400">• Bilder vorhanden</span>}
+                                            <h3 className="font-bold text-lg flex items-center gap-2">
+                                                {slot.slot_number === 0 ? 'Titelbild' : `Mappe ${slot.slot_number}`}
+                                                {isLocked && <span className="text-red-500 text-xs px-2 py-0.5 rounded-full bg-red-900/20 border border-red-900/30 uppercase tracking-wider">Geschlossen</span>}
+                                            </h3>
+                                            <div className="flex gap-4 text-xs text-gray-400 mt-1 font-medium">
+                                                <span>Versuche: <span className={slot.attempts_used >= 3 ? 'text-red-500' : 'text-white'}>{slot.attempts_used}/3</span></span>
+                                                {hasImages && <span className="text-green-400 flex items-center gap-1"><ImageIcon className="w-3 h-3" /> {slot.history_urls.length} Bilder</span>}
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-3">
                                         {isLocked && (
                                             <button
                                                 onClick={() => handleUnlock(slot)}
-                                                className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-lg text-xs font-bold text-white transition-colors border border-gray-700"
+                                                className="flex items-center gap-2 bg-red-900/10 hover:bg-red-900/20 px-4 py-2 rounded-xl text-xs font-bold text-red-400 transition-colors border border-red-900/30"
                                             >
                                                 <Unlock className="w-3 h-3" />
-                                                Freigeben
+                                                Entsperren
                                             </button>
                                         )}
 
-                                        {hasPrompts && (
-                                            <button
-                                                onClick={() => setExpandedSlot(expandedSlot === slot.id ? null : slot.id)}
-                                                className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition-colors"
-                                            >
-                                                {expandedSlot === slot.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={() => setExpandedSlot(expandedSlot === slot.id ? null : slot.id)}
+                                            className={`p-2 rounded-xl transition-colors ${expandedSlot === slot.id ? 'bg-gray-800 text-white' : 'hover:bg-gray-800 text-gray-400 hover:text-white'}`}
+                                        >
+                                            {expandedSlot === slot.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                        </button>
                                     </div>
                                 </div>
 
-                                {/* Prompt History & Details */}
-                                {expandedSlot === slot.id && hasPrompts && (
-                                    <div className="bg-black/30 border-t border-gray-800 p-4 space-y-3">
-                                        <h4 className="text-xs font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
-                                            <MessageSquare className="w-3 h-3" />
-                                            Prompt Historie
-                                        </h4>
-                                        <ul className="space-y-2">
-                                            {slot.prompt_history.map((prompt, idx) => (
-                                                <li key={idx} className="text-sm text-gray-300 bg-gray-800/50 p-3 rounded-lg border border-gray-700/50">
-                                                    <span className="text-gray-500 text-xs mr-2 font-mono">#{idx + 1}</span>
-                                                    {prompt}
-                                                </li>
-                                            ))}
-                                        </ul>
+                                {/* Expanded Details: Images & Prompts */}
+                                {expandedSlot === slot.id && (
+                                    <div className="bg-black/20 border-t border-gray-800 p-6 space-y-8 animate-in slide-in-from-top-2">
+
+                                        {/* Gallery */}
+                                        {hasImages ? (
+                                            <div className="space-y-3">
+                                                <h4 className="text-xs font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
+                                                    <ImageIcon className="w-3 h-3" />
+                                                    Gespeicherte Entwürfe
+                                                </h4>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                                    {slot.history_urls.map((url, idx) => (
+                                                        <a href={url} target="_blank" rel="noreferrer" key={idx} className="relative aspect-square bg-black rounded-lg overflow-hidden border border-gray-800 hover:border-yellow-500 transition-colors group">
+                                                            <Image src={url} alt={`Entwurf ${idx + 1}`} fill className="object-contain" unoptimized />
+                                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                <span className="text-xs font-bold bg-black/80 px-2 py-1 rounded text-white">Öffnen</span>
+                                                            </div>
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-4 text-gray-600 italic text-sm border-2 border-dashed border-gray-800 rounded-xl">Keine Bilder vorhanden.</div>
+                                        )}
+
+                                        {/* Prompts */}
+                                        {hasPrompts && (
+                                            <div className="space-y-3">
+                                                <h4 className="text-xs font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
+                                                    <MessageSquare className="w-3 h-3" />
+                                                    Prompt Historie
+                                                </h4>
+                                                <ul className="space-y-2">
+                                                    {slot.prompt_history.map((prompt, idx) => (
+                                                        <li key={idx} className="text-sm text-gray-300 bg-gray-800/40 p-4 rounded-xl border border-gray-800 flex gap-4">
+                                                            <span className="text-gray-600 font-mono text-xs mt-0.5">#{idx + 1}</span>
+                                                            <span className="leading-relaxed">{prompt}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

@@ -26,7 +26,8 @@ import {
     Maximize2,
     RefreshCw,
     AlertTriangle,
-    Eye
+    Eye,
+    Palette
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -35,6 +36,28 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
     const [loading, setLoading] = useState(true);
     const [activeSlot, setActiveSlot] = useState<ImageSlot | null>(null);
     const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+    // Global Lock Listener
+    useEffect(() => {
+        // Initial Check
+        const checkLock = async () => {
+            const { data } = await supabase.from('app_settings').select('login_locked').single();
+            if (data?.login_locked) onLogout();
+        };
+        checkLock();
+
+        // Realtime Subscription
+        const channel = supabase
+            .channel('global_lock')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
+                if (payload.new.login_locked) {
+                    onLogout();
+                }
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [onLogout]);
 
     useEffect(() => {
         const load = async () => {
@@ -48,22 +71,17 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
     }, [user.id]);
 
     const requestBack = () => {
-        // Szenario B: Slot noch aktiv (< 3 Versuche) -> Einfach zurück, alles behalten
         if (!activeSlot || activeSlot.attempts_used < 3) {
             setActiveSlot(null);
-            // Reload slots to get fresh state
             getSlots(user.id).then(setSlots);
             return;
         }
-
-        // Szenario A: Slot voll -> Warnung vor finalem Löschen der Bilder
         setShowExitConfirm(true);
     };
 
     const confirmExit = async () => {
         if (!activeSlot) return;
         try {
-            // Bilder löschen, aber Slot gesperrt lassen
             await clearSlotImagesOnly(activeSlot);
             setActiveSlot(null);
             setShowExitConfirm(false);
@@ -91,7 +109,7 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                         Übersicht
                     </button>
                     <div className="bg-gray-900/80 px-4 py-2 rounded-full border border-gray-800 text-xs font-mono">
-                        Slot <span className="text-yellow-500">#{activeSlot.slot_number}</span> •
+                        {activeSlot.slot_number === 0 ? 'Titelbild' : `Slot #${activeSlot.slot_number}`} •
                         Versuche <span className={activeSlot.attempts_used >= 3 ? "text-red-500" : "text-yellow-500"}>{activeSlot.attempts_used}/3</span>
                     </div>
                 </div>
@@ -101,7 +119,6 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                     userId={user.id}
                     onUpdate={(url, prompt, history, promptHistory) => {
                         const newAttempts = activeSlot.attempts_used + 1;
-                        // State Update
                         setActiveSlot({
                             ...activeSlot,
                             last_image_base64: url,
@@ -110,7 +127,6 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                             prompt_history: promptHistory,
                             is_locked: newAttempts >= 3
                         });
-                        // DB Update
                         updateSlotWithUrl(activeSlot.id, url, prompt, newAttempts, history, promptHistory);
                     }}
                 />
@@ -144,7 +160,7 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
         <div className="w-full max-w-6xl mx-auto p-6 space-y-8">
             <header className="flex justify-between items-center bg-gray-900/40 p-6 rounded-3xl border border-gray-800 backdrop-blur-md">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold">Design Studio</h1>
+                    <h1 className="text-2xl md:text-3xl font-bold">Hallo, <span className="text-yellow-500">{user.full_name}</span></h1>
                     <p className="text-gray-500 text-sm">Wähle eine Mappe für deine Entwürfe.</p>
                 </div>
                 <button onClick={onLogout} className="p-3 hover:bg-red-500/10 hover:text-red-500 rounded-2xl transition-all text-gray-500">
@@ -155,35 +171,55 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
                 {slots.map((slot) => {
                     const isLocked = slot.is_locked || slot.attempts_used >= 3;
+                    const isTitleSlot = slot.slot_number === 0;
+                    const previewImage = slot.last_image_base64;
+
                     return (
                         <button
                             key={slot.id}
                             onClick={() => setActiveSlot(slot)}
-                            disabled={isLocked && !slot.history_urls?.length} // Wenn locked und leer (nach cleanup) -> Nicht klickbar
+                            disabled={isLocked && !slot.history_urls?.length}
                             className={`
-                                relative group aspect-square rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-3 overflow-hidden
+                                relative group aspect-square rounded-3xl border transition-all duration-300 flex flex-col items-center justify-center gap-3 overflow-hidden
                                 ${isLocked
                                     ? 'border-red-900/50 bg-red-950/20 cursor-not-allowed opacity-75'
                                     : slot.attempts_used > 0
-                                        ? 'border-yellow-500/30 bg-yellow-900/10'
-                                        : 'border-gray-800 bg-gray-900/20 hover:bg-gray-900 hover:border-gray-600'
+                                        ? 'border-yellow-500/50 shadow-lg shadow-yellow-500/10'
+                                        : 'border-gray-800 bg-gray-900/40 hover:bg-gray-900 hover:border-gray-600'
                                 }
                             `}
                         >
-                            <div className={`z-10 p-3 rounded-full backdrop-blur-md border border-white/5 transition-transform ${!isLocked && 'group-hover:scale-110'}`}>
+                            {/* Background / Preview */}
+                            {previewImage && !isLocked ? (
+                                <div className="absolute inset-0">
+                                    <Image src={previewImage} alt="Cover" fill className="object-cover opacity-60 group-hover:opacity-40 transition-opacity" unoptimized />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                                </div>
+                            ) : (
+                                <div className={`absolute inset-0 opacity-20 ${isTitleSlot ? 'bg-gradient-to-br from-purple-500 to-blue-500' : 'bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-700 via-gray-900 to-black'}`} />
+                            )}
+
+                            {/* Icon / Status */}
+                            <div className="z-10 relative">
                                 {isLocked ? (
-                                    <Lock className="w-8 h-8 text-red-500" />
+                                    <Lock className="w-10 h-10 text-red-500 mb-2" />
                                 ) : (
-                                    <Folder className={`w-8 h-8 ${slot.attempts_used > 0 ? 'text-yellow-500' : 'text-gray-600 group-hover:text-gray-300'}`} />
+                                    <div className={`p-4 rounded-2xl ${isTitleSlot ? 'bg-purple-500 text-white' : 'bg-gray-800 text-yellow-500'} group-hover:scale-110 transition-transform duration-300 shadow-xl`}>
+                                        {isTitleSlot ? <ImageIcon className="w-8 h-8" /> : <Palette className="w-8 h-8" />}
+                                    </div>
                                 )}
                             </div>
 
                             <div className="z-10 flex flex-col items-center">
-                                <span className={`font-bold text-lg ${isLocked ? 'text-red-500' : 'text-white'}`}>Mappe {slot.slot_number}</span>
+                                <span className={`font-bold text-lg ${isLocked ? 'text-red-500' : 'text-white'}`}>
+                                    {isTitleSlot ? 'Titelbild' : `Mappe ${slot.slot_number}`}
+                                </span>
                                 {isLocked ? (
                                     <span className="text-[10px] uppercase tracking-widest text-red-500 font-bold mt-1">Geschlossen</span>
                                 ) : slot.attempts_used > 0 && (
-                                    <span className="text-[10px] uppercase tracking-widest text-yellow-500 animate-pulse mt-1">In Bearbeitung</span>
+                                    <span className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold mt-1 bg-yellow-900/40 px-2 py-0.5 rounded-full border border-yellow-500/20">
+                                        {slot.attempts_used}/3 Versuche
+                                    </span>
                                 )}
                             </div>
                         </button>
@@ -254,6 +290,9 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
         setLoading(true);
         setError(null);
 
+        // Active Status ON
+        await supabase.from('profiles').update({ is_generating: true }).eq('id', userId);
+
         try {
             const { data, error: funcError } = await supabase.functions.invoke('bild-generieren', {
                 body: {
@@ -285,6 +324,8 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             setError(err.message);
         } finally {
             setLoading(false);
+            // Active Status OFF
+            await supabase.from('profiles').update({ is_generating: false }).eq('id', userId);
         }
     };
 

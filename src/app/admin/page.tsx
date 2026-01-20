@@ -11,10 +11,15 @@ import {
     Loader2,
     ShieldCheck,
     Download,
-    Eye
+    Eye,
+    Lock,
+    Unlock,
+    Activity,
+    FileText
 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
+import { jsPDF } from 'jspdf';
 
 export default function AdminDashboard() {
     const [students, setStudents] = useState<any[]>([]);
@@ -23,10 +28,34 @@ export default function AdminDashboard() {
     const [newStudentName, setNewStudentName] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [selectedQr, setSelectedQr] = useState<{ name: string, url: string } | null>(null);
+    const [isGlobalLocked, setIsGlobalLocked] = useState(false);
+    const [generatingPdf, setGeneratingPdf] = useState(false);
 
     useEffect(() => {
         fetchStudents();
+        fetchSettings();
+
+        // Realtime: Active Status & Settings
+        const channel = supabase
+            .channel('admin_dashboard')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, (payload) => {
+                setStudents(prev => prev.map(s => s.id === payload.new.id ? { ...s, ...payload.new } : s));
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
+                setIsGlobalLocked(payload.new.login_locked);
+            })
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' }, (payload) => {
+                setStudents(prev => [payload.new, ...prev]);
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
     }, []);
+
+    const fetchSettings = async () => {
+        const { data } = await supabase.from('app_settings').select('login_locked').single();
+        if (data) setIsGlobalLocked(data.login_locked);
+    };
 
     const fetchStudents = async () => {
         setLoading(true);
@@ -42,8 +71,10 @@ export default function AdminDashboard() {
     };
 
     const generateCode = () => {
+        // Format: XXXX-XXXX-XXXX
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        return Array.from({ length: 6 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+        const segment = () => Array.from({ length: 4 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+        return `${segment()}-${segment()}-${segment()}`;
     };
 
     const addStudent = async () => {
@@ -65,11 +96,71 @@ export default function AdminDashboard() {
             if (data.error) throw new Error(data.error);
 
             setNewStudentName('');
+            // fetchStudents handled by realtime, but safety fetch:
             fetchStudents();
         } catch (err: any) {
             setError("Fehler: " + err.message);
         } finally {
             setActionLoading(false);
+        }
+    };
+
+    const toggleGlobalLock = async () => {
+        const newState = !isGlobalLocked;
+        try {
+            const { error } = await supabase
+                .from('app_settings')
+                .update({ login_locked: newState })
+                .eq('id', 1); // Assuming ID 1 is the singleton row
+            if (error) throw error;
+            setIsGlobalLocked(newState);
+        } catch (err: any) {
+            alert("Fehler beim Ändern des Status: " + err.message);
+        }
+    };
+
+    const generatePdf = async () => {
+        setGeneratingPdf(true);
+        try {
+            const doc = new jsPDF();
+            let y = 20;
+
+            doc.setFontSize(20);
+            doc.text("Zugangscodes - Nano Banana", 105, y, { align: 'center' });
+            y += 20;
+
+            for (let i = 0; i < students.length; i++) {
+                const s = students[i];
+                if (y > 250) {
+                    doc.addPage();
+                    y = 20;
+                }
+
+                doc.setFontSize(12);
+                doc.text(`Name: ${s.full_name}`, 20, y);
+                doc.text(`Code: ${s.access_code}`, 20, y + 7);
+
+                // Generate QR
+                const path = window.location.pathname;
+                const basePath = path.substring(0, path.lastIndexOf('/admin'));
+                const loginUrl = `${window.location.origin}${basePath}/?code=${s.access_code}`;
+                const qrDataUrl = await QRCode.toDataURL(loginUrl, { margin: 1 });
+
+                doc.addImage(qrDataUrl, 'PNG', 150, y - 5, 30, 30);
+
+                // Line
+                doc.setDrawColor(200);
+                doc.line(20, y + 30, 190, y + 30);
+
+                y += 40;
+            }
+
+            doc.save('zugangscodes.pdf');
+        } catch (err) {
+            console.error(err);
+            alert("PDF Fehler");
+        } finally {
+            setGeneratingPdf(false);
         }
     };
 
@@ -82,14 +173,13 @@ export default function AdminDashboard() {
             .eq('id', id);
 
         if (error) setError(error.message);
+        // Realtime usually handles removal if we listened to DELETE, but let's re-fetch to be safe
         else fetchStudents();
     };
 
     const showQr = async (student: any) => {
         try {
-            // Wir bauen die volle URL für den automatischen Login
-            // Wir müssen 'window.location.pathname' nutzen, um auch Projekt-Unterordner (GitHub Pages) zu unterstützen
-            const path = window.location.pathname; // z.B. "/repo-name/admin" oder "/admin"
+            const path = window.location.pathname;
             const basePath = path.substring(0, path.lastIndexOf('/admin'));
             const loginUrl = `${window.location.origin}${basePath}/?code=${student.access_code}`;
 
@@ -102,11 +192,11 @@ export default function AdminDashboard() {
 
     return (
         <main className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
-            <div className="max-w-5xl mx-auto space-y-8">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="max-w-6xl mx-auto space-y-8">
+                {/* Header Actions */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-900 border border-gray-800 p-6 rounded-2xl">
                     <div className="flex items-center gap-4">
-                        <Link href="/" className="p-2 hover:bg-gray-900 rounded-full transition-colors">
+                        <Link href="/" className="p-2 hover:bg-gray-800 rounded-full transition-colors">
                             <ChevronLeft className="w-6 h-6" />
                         </Link>
                         <div>
@@ -114,8 +204,27 @@ export default function AdminDashboard() {
                                 <ShieldCheck className="text-yellow-500" />
                                 Admin Dashboard
                             </h1>
-                            <p className="text-gray-500 text-sm">Verwalte deine Klasse und Zugangscodes</p>
+                            <p className="text-gray-500 text-sm">Verwalte deine Klasse</p>
                         </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                        <button
+                            onClick={toggleGlobalLock}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${isGlobalLocked ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-gray-800 hover:bg-gray-700 text-green-400'}`}
+                        >
+                            {isGlobalLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                            {isGlobalLocked ? 'System GESPERRT' : 'System OFFEN'}
+                        </button>
+
+                        <button
+                            onClick={generatePdf}
+                            disabled={generatingPdf}
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50"
+                        >
+                            {generatingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                            PDF Export
+                        </button>
                     </div>
                 </div>
 
@@ -157,6 +266,7 @@ export default function AdminDashboard() {
                         <table className="w-full text-left">
                             <thead className="bg-black/50 text-gray-500 text-xs uppercase tracking-widest">
                                 <tr>
+                                    <th className="px-6 py-4 font-medium">Status</th>
                                     <th className="px-6 py-4 font-medium">Name</th>
                                     <th className="px-6 py-4 font-medium">Zugangscode</th>
                                     <th className="px-6 py-4 font-medium text-right">Aktionen</th>
@@ -165,22 +275,32 @@ export default function AdminDashboard() {
                             <tbody className="divide-y divide-gray-800">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={3} className="px-6 py-12 text-center">
+                                        <td colSpan={4} className="px-6 py-12 text-center">
                                             <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-700" />
                                         </td>
                                     </tr>
                                 ) : students.length === 0 ? (
                                     <tr>
-                                        <td colSpan={3} className="px-6 py-12 text-center text-gray-600">
+                                        <td colSpan={4} className="px-6 py-12 text-center text-gray-600">
                                             Noch keine Schüler angelegt.
                                         </td>
                                     </tr>
                                 ) : (
                                     students.map((student) => (
                                         <tr key={student.id} className="hover:bg-gray-800/30 transition-colors">
+                                            <td className="px-6 py-4">
+                                                {student.is_generating ? (
+                                                    <div className="flex items-center gap-2 text-green-400 animate-pulse font-bold text-xs uppercase tracking-wide">
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                        Aktiv
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-2 h-2 rounded-full bg-gray-700 mx-2" />
+                                                )}
+                                            </td>
                                             <td className="px-6 py-4 font-medium">{student.full_name}</td>
                                             <td className="px-6 py-4">
-                                                <code className="bg-black px-3 py-1 rounded text-yellow-500 font-mono text-lg">
+                                                <code className="bg-black px-3 py-1 rounded text-yellow-500 font-mono text-sm tracking-wider">
                                                     {student.access_code}
                                                 </code>
                                             </td>
@@ -228,7 +348,7 @@ export default function AdminDashboard() {
                     <div className="bg-white p-6 rounded-3xl max-w-sm w-full text-center space-y-4" onClick={e => e.stopPropagation()}>
                         <h3 className="text-black font-bold text-xl">{selectedQr.name}</h3>
                         <img src={selectedQr.url} alt="QR Code" className="w-full h-auto mx-auto" />
-                        <p className="text-gray-900 font-mono text-2xl tracking-widest">{selectedQr.name}</p>
+                        <p className="text-gray-900 font-mono text-lg tracking-widest break-all">{selectedQr.name}</p>
                         <button
                             onClick={() => setSelectedQr(null)}
                             className="bg-gray-900 text-white w-full py-3 rounded-xl font-bold hover:bg-black transition-colors"

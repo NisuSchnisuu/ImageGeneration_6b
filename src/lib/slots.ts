@@ -18,17 +18,21 @@ export async function initializeSlots(userId: string) {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
-    if (count && count === 15) return;
+    // Wenn wir schon 16 Slots haben (0 bis 15), sind wir fertig
+    if (count && count === 16) return;
 
-    const slots = Array.from({ length: 15 }, (_, i) => ({
+    // Wir erstellen Slots 0 bis 15.
+    // Slot 0 ist das Titelbild.
+    const slots = Array.from({ length: 16 }, (_, i) => ({
         user_id: userId,
-        slot_number: i + 1,
+        slot_number: i, // Startet bei 0
         attempts_used: 0,
         is_locked: false,
         history_urls: [],
         prompt_history: []
     }));
 
+    // Upsert ignoriert existierende via Slot_number Constraint (hoffentlich unique Constraint auf user_id + slot_number)
     await supabase.from('image_slots').upsert(slots, { onConflict: 'user_id, slot_number' });
 }
 
