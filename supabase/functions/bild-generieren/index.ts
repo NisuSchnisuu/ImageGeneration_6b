@@ -32,6 +32,52 @@ serve(async (req) => {
 
         // Initialize Gemini (using same logic as before but with Deno imports)
         const genAI = new GoogleGenerativeAI(apiKey);
+
+        // --- GUARDRAIL CHECK STARTS HERE ---
+        const guardModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const guardPrompt = `
+You are a content safety filter for a strictly visual image generation tool for students.
+Analyze the User Prompt: "${prompt}"
+
+Context:
+- The user is generating an image in Slot ${slotNumber}.
+
+Rules for "NOT ALLOWED":
+1. Safety Violation: Use standard strict safety guidelines (no violence, hate speech, sexual content, self-harm, harassment).
+2. Text Restriction: If Slot is NOT 0, the user MUST NOT ask for text, words, letters, signs, labels, or numbers to be visible in the image. (Example: "A dog holding a sign saying hello" -> VIOLATION if Slot != 0. "A dog" -> PERMITTED).
+
+If the prompt violates any rule, you must block it.
+
+Return a JSON object with this structure:
+{
+  "allowed": boolean,
+  "reason": "string" // IF allowed is false: Write a friendly error message in German explaining why. For text violations say something like "Ich erstelle hier keinen Text auf Bildern, das kannst du selbst besser! ;D". For safety violations be clear but polite.
+}
+`;
+
+        try {
+            const result = await guardModel.generateContent(guardPrompt);
+            const response = await result.response;
+            const text = response.text();
+            // Parse JSON (handle potential markdown blocks)
+            const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            const guardResult = JSON.parse(jsonStr);
+
+            if (!guardResult.allowed) {
+                return new Response(JSON.stringify({
+                    reason: guardResult.reason,
+                    isSafetyBlock: true
+                }), {
+                    status: 400,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+            }
+        } catch (e) {
+            console.error("Guardrail check failed:", e);
+            // We proceed if guardrail fails to avoid blocking system due to glitch
+        }
+        // --- GUARDRAIL CHECK ENDS ---
+
         // Always use Gemini 3 Pro
         const selectedModel = "gemini-3-pro-image-preview";
         const model = genAI.getGenerativeModel({ model: selectedModel });
@@ -51,13 +97,8 @@ serve(async (req) => {
 
         const arSuffix = aspectRatio ? `\n\nEnsure the generated image has an aspect ratio of ${aspectRatio}.` : "";
 
-        let textRestriction = "";
-        // Wenn es NICHT Slot 0 (Titelbild) ist, verbieten wir Text strikt.
-        if (slotNumber !== 0) {
-            textRestriction = "\n\nIMPORTANT: Do NOT generate any text, letters, words, or numbers in the image. The image must be purely visual. If the user asks for text, ignore that part of the request.";
-        }
+        parts[0].text += arSuffix;
 
-        parts[0].text += arSuffix + textRestriction;
 
         const result = await model.generateContent({ contents: [{ role: "user", parts }] });
         const response = await result.response;

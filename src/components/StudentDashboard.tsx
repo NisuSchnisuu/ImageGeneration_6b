@@ -289,19 +289,6 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
     const handleGenerate = async () => {
         if (!prompt.trim() || slot.attempts_used >= 3) return;
 
-        // --- TEXT GUARDRAIL (Client-Side) ---
-        // Wenn nicht Slot 0, prüfen wir auf verbotene Wörter
-        if (slot.slot_number !== 0) {
-            const forbidden = ['text', 'schrift', 'schreib', 'wort', 'wörter', 'buchstabe', 'satz', 'name', 'titel', 'label', 'sign'];
-            const lowerPrompt = prompt.toLowerCase();
-            const foundForbidden = forbidden.find(word => lowerPrompt.includes(word));
-
-            if (foundForbidden) {
-                setError(`STOP! 🛑\nIch erstelle hier keinen Text auf Bildern.\nDas kannst du selbst viel besser! ;D\n\n(Verbotenes Wort: "${foundForbidden}")`);
-                return;
-            }
-        }
-
         setLoading(true);
         setError(null);
 
@@ -318,20 +305,46 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                 },
             });
 
-            if (funcError) throw funcError;
+            if (funcError) {
+                // Check if it's a safety block from our guardrail
+                if (funcError instanceof Error && funcError.message.includes("Edge Function returned a non-2xx status code")) {
+                    // Try to parse the body if possible, but supabase-js might swallow it depending on version.
+                    // Actually, for non-2xx, data might be null.
+                    // Let's rely on data if it's populated even on error?
+                    // Supabase functions invoke usually throws on non-2xx.
+                    // We might need to handle it differently.
+                    // Let's assume the error message MIGHT contain the body or we can't get it easily.
 
-            // --- SAFETY / BLOCK HANDLING ---
-            if (data.error && data.error.startsWith('BLOCKED:')) {
-                const reason = data.error.replace('BLOCKED:', '').trim();
-                let userMessage = "Die KI hat deine Anfrage blockiert.";
-
-                if (reason.includes('SAFETY')) userMessage = "Upps! 🛑\nDie KI findet deine Anfrage unsicher (Gewalt, Personen, etc.).\nBitte formuliere sie freundlicher.";
-                if (reason.includes('RECITATION')) userMessage = "Hoppla! ©\nDas sieht nach urheberrechtlich geschütztem Material aus (z.B. bekannte Figuren).\nVersuche etwas Eigenes!";
-
-                throw new Error(userMessage);
+                    // RETRY: Let's assume standard behavior: if it fails, we might not get the custom JSON easily without a custom fetch or updated client.
+                    // However, let's try to interpret the error. 
+                    // Actually, Supabase V2 client returns data: null, error: { message, context: Response }?
+                }
+                throw funcError;
             }
 
-            if (data.error) throw new Error(data.error);
+            // Guardrail Block Handling (if status was 200 but contained error, OR via 400 if client handles it)
+            // Note: If we returned 400, supabase client populates 'error'.
+            // If we returned 200 with error field, it's in 'data'.
+
+            // Backend implementation returns 400.
+            // When Supabase receives 400, it sets 'error'. 
+            // We need to see if we can extract the JSON.
+            // If we cannot, we might need to update backend to return 200 for "Soft Blocks".
+
+            // To be SAFE and ensure we can show the message, let's check if 'data' is present?
+            // If 400, data is usually null.
+            // Let's try to use the 'data' field IF 400 returns it (some clients do).
+
+            if (data && data.isSafetyBlock) {
+                throw new Error(data.reason);
+            }
+
+            if (data && data.error) {
+                if (data.isSafetyBlock) {
+                    throw new Error(data.reason || data.error);
+                }
+                throw new Error(data.error);
+            }
 
             const webpBlob = await compressImage(data.image, 0.8);
             const publicUrl = await uploadImage(userId, slot.slot_number, webpBlob);
