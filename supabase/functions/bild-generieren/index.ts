@@ -49,7 +49,7 @@ serve(async (req) => {
             parts[0].text = `Using the attached image as a visual reference, generate a new image based on this prompt: ${prompt}`;
         }
 
-        const arSuffix = aspectRatio ? ` Use aspect ratio ${aspectRatio}.` : "";
+        const arSuffix = aspectRatio ? `\n\nEnsure the generated image has an aspect ratio of ${aspectRatio}.` : "";
         parts[0].text += arSuffix;
 
         const result = await model.generateContent({ contents: [{ role: "user", parts }] });
