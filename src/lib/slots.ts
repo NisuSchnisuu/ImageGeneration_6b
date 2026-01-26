@@ -133,8 +133,8 @@ export async function archiveSlotImages(slot: ImageSlot) {
             // We reuse urlToBase64 to get data, then compress
             const base64 = await urlToBase64(originalUrl);
 
-            // 2. Aggressive Compression (0.2 = 20%, Max 512px) -> Ziel < 200kb
-            const compressedBlob = await compressImage(base64, 0.2, 512);
+            // 2. Extreme Compression (0.05 = 5%, Max 512px) -> Ziel < 200kb
+            const compressedBlob = await compressImage(base64, 0.05, 512);
 
             // 3. Upload (Overwrite or new name? Same name saves cleanup logic, but cache might be issue. New name is safer.)
             // Let's use a suffix "-archive"
