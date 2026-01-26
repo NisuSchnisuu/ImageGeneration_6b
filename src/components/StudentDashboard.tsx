@@ -66,11 +66,17 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
 
     useEffect(() => {
         const load = async () => {
-            setLoading(true);
-            await initializeSlots(user.id);
-            const data = await getSlots(user.id);
-            setSlots(data);
-            setLoading(false);
+            try {
+                setLoading(true);
+                await initializeSlots(user.id);
+                const data = await getSlots(user.id);
+                setSlots(data);
+            } catch (e) {
+                console.error("Dashboard Load Error:", e);
+                // Optionally set error state here if UI supports it
+            } finally {
+                setLoading(false);
+            }
         };
         load();
     }, [user.id]);

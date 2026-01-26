@@ -52,7 +52,10 @@ export async function initializeSlots(userId: string) {
     }
 
     if (newSlots.length > 0) {
-        await supabase.from('image_slots').insert(newSlots);
+        const { error } = await supabase.from('image_slots').insert(newSlots);
+        if (error && !error.message.includes('duplicate')) {
+            console.error("Failed to insert slots:", error);
+        }
     }
 }
 
