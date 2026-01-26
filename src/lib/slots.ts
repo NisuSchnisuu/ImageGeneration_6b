@@ -134,11 +134,13 @@ export async function archiveSlotImages(slot: ImageSlot) {
             const base64 = await urlToBase64(originalUrl);
 
             // 2. Extreme Compression (0.05 = 5%, Max 512px) -> Ziel < 200kb
-            const compressedBlob = await compressImage(base64, 0.05, 512);
+            const compressedBlob = await compressImage(base64, 0.05, 512); // changed From 0.2 to 0.05
+            console.log(`Original: ${base64.length} chars, Compressed Blob: ${compressedBlob.size} bytes`);
 
             // 3. Upload (Overwrite or new name? Same name saves cleanup logic, but cache might be issue. New name is safer.)
             // Let's use a suffix "-archive"
             const fileName = `${userId}/slot-${slot.slot_number}/archive-${Date.now()}-${i}.webp`;
+            console.log("Uploading reduced image to:", fileName);
 
             const { error: uploadError } = await supabase.storage
                 .from('images')
