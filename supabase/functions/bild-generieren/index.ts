@@ -170,7 +170,7 @@ Return JSON in this format:
         }
 
         if (slotNumber === 1) {
-            textRestriction += "\n\nIMPORTANT: Generate the described character ISOLATED on a simple, solid color background. Do NOT generate complex scenes, landscapes, or detailed backgrounds. The focus must be 100% on the character design.";
+            textRestriction += "\n\nIMPORTANT: Generate the described character ISOLATED on a simple, solid color background. The character MUST be in a full-body standing pose, facing forward (front view), with a neutral expression and arms at the sides. Do NOT generate any action, running, or dynamic poses. Do NOT generate complex scenes, landscapes, or detailed backgrounds. The focus must be 100% on the character design as a reference sheet.";
         }
 
         parts[0].text += arSuffix + textRestriction;

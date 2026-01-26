@@ -503,9 +503,15 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                                 </div>
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center opacity-10">
-                                    <div className="w-12 h-12 rounded-full border-2 border-dashed border-white flex items-center justify-center">
-                                        <span className="font-mono font-bold text-lg">{idx + 1}</span>
-                                    </div>
+                                    <span className="font-mono font-bold text-lg">{idx + 1}</span>
+                                    {/* Subtiler Aspect Ratio Rahmen */}
+                                    <div className="absolute border border-white/20 pointer-events-none transition-all duration-300"
+                                        style={{
+                                            width: arW > arH ? '60%' : 'auto',
+                                            height: arH > arW ? '60%' : 'auto',
+                                            aspectRatio: aspectRatio.replace(':', '/')
+                                        }}
+                                    />
                                 </div>
                             )}
                         </div>
@@ -643,37 +649,39 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             }
 
             {/* Safety / Guard Popup */}
-            {safetyPopup.isOpen && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-gray-900 border-2 border-red-500/50 p-8 rounded-3xl max-w-lg text-center space-y-6 shadow-2xl relative overflow-hidden">
-                        {/* Background Effect */}
-                        <div className="absolute inset-0 bg-red-500/5 pointer-events-none" />
+            {
+                safetyPopup.isOpen && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md animate-in fade-in duration-300">
+                        <div className="bg-gray-900 border-2 border-red-500/50 p-8 rounded-3xl max-w-lg text-center space-y-6 shadow-2xl relative overflow-hidden">
+                            {/* Background Effect */}
+                            <div className="absolute inset-0 bg-red-500/5 pointer-events-none" />
 
-                        <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto text-red-500 animate-bounce">
-                            {safetyPopup.type === 'TEXT' ? (
-                                <span className="text-4xl">🔤</span> // Or a specific Icon
-                            ) : (
-                                <AlertTriangle className="w-10 h-10" />
-                            )}
+                            <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto text-red-500 animate-bounce">
+                                {safetyPopup.type === 'TEXT' ? (
+                                    <span className="text-4xl">🔤</span> // Or a specific Icon
+                                ) : (
+                                    <AlertTriangle className="w-10 h-10" />
+                                )}
+                            </div>
+
+                            <h3 className="text-2xl font-bold text-white relative z-10">
+                                {safetyPopup.type === 'TEXT' ? 'Kein Text erlaubt!' : 'Hoppla!'}
+                            </h3>
+
+                            <p className="text-gray-300 text-lg leading-relaxed relative z-10 font-medium">
+                                {safetyPopup.message}
+                            </p>
+
+                            <button
+                                onClick={() => setSafetyPopup({ ...safetyPopup, isOpen: false })}
+                                className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-xl transition-all relative z-10 shadow-lg hover:scale-105 active:scale-95"
+                            >
+                                Verstanden
+                            </button>
                         </div>
-
-                        <h3 className="text-2xl font-bold text-white relative z-10">
-                            {safetyPopup.type === 'TEXT' ? 'Kein Text erlaubt!' : 'Hoppla!'}
-                        </h3>
-
-                        <p className="text-gray-300 text-lg leading-relaxed relative z-10 font-medium">
-                            {safetyPopup.message}
-                        </p>
-
-                        <button
-                            onClick={() => setSafetyPopup({ ...safetyPopup, isOpen: false })}
-                            className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-xl transition-all relative z-10 shadow-lg hover:scale-105 active:scale-95"
-                        >
-                            Verstanden
-                        </button>
                     </div>
-                </div>
-            )}
+                )
+            }
 
         </div >
     );
