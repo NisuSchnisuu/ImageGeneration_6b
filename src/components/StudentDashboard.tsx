@@ -505,10 +505,10 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                                 <div className="absolute inset-0 flex items-center justify-center opacity-10">
                                     <span className="font-mono font-bold text-lg">{idx + 1}</span>
                                     {/* Subtiler Aspect Ratio Rahmen */}
-                                    <div className="absolute border border-white/20 pointer-events-none transition-all duration-300"
+                                    <div className="absolute border-2 border-dashed border-white/50 pointer-events-none transition-all duration-300 rounded-sm"
                                         style={{
-                                            width: arW > arH ? '60%' : 'auto',
-                                            height: arH > arW ? '60%' : 'auto',
+                                            width: arH > arW ? 'auto' : '65%',
+                                            height: arW > arH ? 'auto' : '65%',
                                             aspectRatio: aspectRatio.replace(':', '/')
                                         }}
                                     />
