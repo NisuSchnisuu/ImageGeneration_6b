@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { adminUnlockSlot, ImageSlot, getSlots, forceDeleteSlotImages } from '@/lib/slots';
+import { adminUnlockSlot, ImageSlot, getSlots, forceDeleteSlotImages, getMaxAttempts } from '@/lib/slots';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -18,7 +18,8 @@ import {
     ChevronUp,
     Activity,
     ImageIcon,
-    Trash2
+    Trash2,
+    Ghost
 } from 'lucide-react';
 
 function StudentDetailContent() {
@@ -124,24 +125,36 @@ function StudentDetailContent() {
                 {/* Slots Grid */}
                 <div className="grid gap-6">
                     {slots.map(slot => {
-                        const isLocked = slot.is_locked || slot.attempts_used >= 3;
+                        const maxAttempts = getMaxAttempts(slot.slot_number);
+                        const isLocked = slot.is_locked || slot.attempts_used >= maxAttempts;
                         const hasPrompts = slot.prompt_history && slot.prompt_history.length > 0;
                         const hasImages = slot.history_urls && slot.history_urls.length > 0;
+
+                        const isTitleSlot = slot.slot_number === 0;
+                        const isCharacterSlot = slot.slot_number === 1;
+                        const remainingMappeNumber = slot.slot_number - 1;
 
                         return (
                             <div key={slot.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden transition-all hover:border-gray-700">
                                 <div className="p-5 flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className={`p-4 rounded-xl ${isLocked ? 'bg-red-900/10 text-red-500 border border-red-900/20' : 'bg-gray-800 text-yellow-500 border border-gray-700'}`}>
-                                            {isLocked ? <Lock className="w-6 h-6" /> : <FolderOpen className="w-6 h-6" />}
+                                        <div className={`p-4 rounded-xl ${isLocked
+                                            ? 'bg-red-900/10 text-red-500 border border-red-900/20'
+                                            : isTitleSlot
+                                                ? 'bg-purple-900/20 text-purple-400 border border-purple-900/30'
+                                                : isCharacterSlot
+                                                    ? 'bg-green-900/20 text-green-400 border border-green-900/30'
+                                                    : 'bg-gray-800 text-yellow-500 border border-gray-700'
+                                            }`}>
+                                            {isLocked ? <Lock className="w-6 h-6" /> : isTitleSlot ? <ImageIcon className="w-6 h-6" /> : isCharacterSlot ? <Ghost className="w-6 h-6" /> : <FolderOpen className="w-6 h-6" />}
                                         </div>
                                         <div>
                                             <h3 className="font-bold text-lg flex items-center gap-2">
-                                                {slot.slot_number === 0 ? 'Titelbild' : `Mappe ${slot.slot_number}`}
+                                                {isTitleSlot ? 'Titelbild' : isCharacterSlot ? 'Charakter' : `Mappe ${remainingMappeNumber}`}
                                                 {isLocked && <span className="text-red-500 text-xs px-2 py-0.5 rounded-full bg-red-900/20 border border-red-900/30 uppercase tracking-wider">Geschlossen</span>}
                                             </h3>
                                             <div className="flex gap-4 text-xs text-gray-400 mt-1 font-medium">
-                                                <span>Versuche: <span className={slot.attempts_used >= 3 ? 'text-red-500' : 'text-white'}>{slot.attempts_used}/3</span></span>
+                                                <span>Versuche: <span className={slot.attempts_used >= maxAttempts ? 'text-red-500' : 'text-white'}>{slot.attempts_used}/{maxAttempts}</span></span>
                                                 {hasImages && <span className="text-green-400 flex items-center gap-1"><ImageIcon className="w-3 h-3" /> {slot.history_urls.length} Bilder</span>}
                                             </div>
                                         </div>
