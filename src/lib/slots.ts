@@ -133,8 +133,8 @@ export async function archiveSlotImages(slot: ImageSlot) {
             // We reuse urlToBase64 to get data, then compress
             const base64 = await urlToBase64(originalUrl);
 
-            // 2. Strong Compression (0.4 = 40%, Max 800px)
-            const compressedBlob = await compressImage(base64, 0.4, 800);
+            // 2. Aggressive Compression (0.2 = 20%, Max 512px) -> Ziel < 200kb
+            const compressedBlob = await compressImage(base64, 0.2, 512);
 
             // 3. Upload (Overwrite or new name? Same name saves cleanup logic, but cache might be issue. New name is safer.)
             // Let's use a suffix "-archive"
@@ -198,22 +198,12 @@ export async function forceDeleteSlotImages(slot: ImageSlot) {
     // 1. Storage leeren
     await deleteFilesInStorage(slot.user_id, slot.slot_number);
 
-    // 2. DB: Bilder entfernen
-    const { data, error } = await supabase
-        .from('image_slots')
-        .update({
-            last_image_base64: null,
-            history_urls: [],
-            updated_at: new Date().toISOString()
-            // prompt_history bleibt
-        })
-        .eq('id', slot.id)
-        .select();
+    // 2. DB: Cleanup via Secure RPC
+    const { error } = await supabase.rpc('admin_clear_slot', {
+        slot_id: slot.id
+    });
 
     if (error) throw error;
-    if (!data || data.length === 0) {
-        throw new Error("Update fehlgeschlagen (Keine Berechtigung oder Slot nicht gefunden)");
-    }
 }
 
 /**
