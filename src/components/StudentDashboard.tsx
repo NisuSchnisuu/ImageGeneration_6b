@@ -421,10 +421,12 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
 
     const ratios = ['1:1', '2:3', '3:4', '4:3', '16:9', '9:16'];
 
+    const maxAttempts = getMaxAttempts(slot.slot_number);
+
     return (
         <div className="space-y-8">
-            <div className="grid grid-cols-3 gap-4 h-56"> {/* Höhe angepasst für größere Boxen */}
-                {[0, 1, 2].map((idx) => {
+            <div className={`grid gap-4 h-56 ${maxAttempts > 3 ? 'grid-cols-5' : 'grid-cols-3'}`}> {/* Höhe angepasst für größere Boxen */}
+                {Array.from({ length: maxAttempts }, (_, i) => i).map((idx) => {
                     const imgUrl = history[idx];
                     const isAllocatedSlot = loading && idx === history.length;
 
