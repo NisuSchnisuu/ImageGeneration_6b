@@ -133,8 +133,8 @@ export async function archiveSlotImages(slot: ImageSlot) {
             // We reuse urlToBase64 to get data, then compress
             const base64 = await urlToBase64(originalUrl);
 
-            // 2. Strong Compression (0.4 = 40%)
-            const compressedBlob = await compressImage(base64, 0.4);
+            // 2. Strong Compression (0.4 = 40%, Max 800px)
+            const compressedBlob = await compressImage(base64, 0.4, 800);
 
             // 3. Upload (Overwrite or new name? Same name saves cleanup logic, but cache might be issue. New name is safer.)
             // Let's use a suffix "-archive"
@@ -184,6 +184,7 @@ export async function archiveSlotImages(slot: ImageSlot) {
             last_image_base64: newHistoryUrls[newHistoryUrls.length - 1] || null, // Preview update
             // is_locked bleibt/wird true
             is_locked: true,
+            updated_at: new Date().toISOString()
         })
         .eq('id', slot.id);
 
@@ -198,16 +199,21 @@ export async function forceDeleteSlotImages(slot: ImageSlot) {
     await deleteFilesInStorage(slot.user_id, slot.slot_number);
 
     // 2. DB: Bilder entfernen
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('image_slots')
         .update({
             last_image_base64: null,
             history_urls: [],
+            updated_at: new Date().toISOString()
             // prompt_history bleibt
         })
-        .eq('id', slot.id);
+        .eq('id', slot.id)
+        .select();
 
     if (error) throw error;
+    if (!data || data.length === 0) {
+        throw new Error("Update fehlgeschlagen (Keine Berechtigung oder Slot nicht gefunden)");
+    }
 }
 
 /**
