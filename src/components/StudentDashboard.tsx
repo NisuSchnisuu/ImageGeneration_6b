@@ -7,8 +7,6 @@ import {
     initializeSlots,
     updateSlotWithUrl,
     uploadImage,
-    updateSlotWithUrl,
-    uploadImage,
     archiveSlotImages,
     ImageSlot
 } from '@/lib/slots';
