@@ -24,13 +24,18 @@ Nano Banana ist eine Webanwendung für den Unterricht, die es Schülern ermögli
 - **Regeln:**
   - Pro Slot max. **3 Versuche** (Iterationen).
   - Bilder werden persistent gespeichert, solange der Slot < 3 Versuche hat.
-  - Ist der Slot voll (3/3), wird er gesperrt (`is_locked`).
-  - Verlässt man einen vollen Slot, werden die Bilder gelöscht (Storage cleanup), aber der Slot bleibt gesperrt (Metadaten bleiben).
-  - Admins können Slots wieder entsperren (Unlock).
+  - **Archivierung:** Ist der Slot voll (3/3) und wird er verlassen/geschlossen (`is_locked`):
+    - Die Bilder werden **NICHT** gelöscht.
+    - Die Bilder werden **extrem komprimiert** (5% Qualität, max 512px), um Speicher zu sparen.
+    - Sie bleiben für den Admin sichtbar.
+  - **Löschen:** Der Admin kann archivierte Bilder manuell über das Dashboard endgültig löschen.
 
 ### Bild-Pipeline
 1.  **Generierung:** Supabase Edge Function (`bild-generieren`) ruft Gemini Pro Vision.
-2.  **Verarbeitung:** Frontend komprimiert Base64 zu **WebP (80% Quality)**.
+    - **Qualität:** Das Frontend speichert das Ergebnis in **Maximaler Qualität** (99% WebP, bis 2048px).
+2.  **Verarbeitung & Archivierung:**
+    - Solange gearbeitet wird: Hohe Qualität.
+    - Beim Schließen der Mappe: Client-seitige Kompression auf 512px / 5% Qualtität.
 3.  **Speicherung:** Upload in Supabase Storage (`images` Bucket). URL wird in DB gespeichert.
 4.  **Referenz:** Bilder können als Input (Image-to-Image) wieder an die KI gesendet werden (Download -> Base64 Konvertierung).
 5.  **Live-Status:** Wenn ein Schüler generiert, sieht der Lehrer im Admin-Dashboard ein blinkendes "Aktiv"-Signal.

@@ -2,6 +2,20 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
+## [Released] - 2026-01-26
+
+### Hinzugefügt
+- **Admin Features:**
+    - **Lösch-Funktion:** Admins können Bilder von gesperrten Slots nun endgültig löschen ("Trash"-Button).
+    - **Rechte-System Update:** Neue Storage-Policy und RPC-Funktionen, um Admins volle Kontrolle über Schüler-Dateien zu geben.
+- **Speicher-Optimierung:**
+    - **Intelligente Kompression:**
+        - **Bei Erstellung:** Maximale Qualität (99%, max 2048px) für beste Ergebnisse (~1.5MB).
+        - **Bei Archivierung:** Extreme Kompression (5%, max 512px) für minimale Speicherplatzbelegung (~200kb), sobald eine Mappe geschlossen wird.
+
+### Geändert
+- **Slot-Logik:** Geschlossene Slots ("Locked") löschen ihre Bilder nicht mehr, sondern archivieren sie. Der Admin behält Einsicht, bis er sie manuell löscht.
+
 ## [Released] - 2026-01-20
 
 ### Hinzugefügt
