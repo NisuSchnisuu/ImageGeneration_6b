@@ -29,7 +29,10 @@ import {
     AlertTriangle,
     Eye,
     Palette,
-    Ghost
+    Ghost,
+    UserPlus,
+    XCircle,
+    Users
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -285,6 +288,38 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
     const [error, setError] = useState<string | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const charInputRef = useRef<HTMLInputElement>(null);
+
+    // Character References
+    interface CharRef { id: number; url: string; }
+    const [charRefs, setCharRefs] = useState<CharRef[]>([]);
+    const [isProcessingChar, setIsProcessingChar] = useState(false);
+
+    const handleAddCharRef = async (urlOrBase64: string) => {
+        if (charRefs.length >= 5) return; // Limit to 5
+        setIsProcessingChar(true);
+        try {
+            const base64 = urlOrBase64.startsWith('http') ? await urlToBase64(urlOrBase64) : urlOrBase64;
+            setCharRefs(prev => [...prev, { id: Date.now(), url: base64 }]);
+        } catch (e) {
+            console.error("Failed to load char ref", e);
+        } finally {
+            setIsProcessingChar(false);
+        }
+    };
+
+    const removeCharRef = (id: number) => {
+        setCharRefs(prev => prev.filter(c => c.id !== id));
+    };
+
+    const onCharFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const base64 = await fileToBase64(file);
+            handleAddCharRef(base64);
+        }
+        if (charInputRef.current) charInputRef.current.value = '';
+    };
 
     const forceDownload = async (url: string, filename: string) => {
         try {
@@ -339,6 +374,10 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                     prompt,
                     aspectRatio,
                     referenceImage,
+                    characterReferences: charRefs.map((c, i) => ({
+                        data: c.url,
+                        label: `Charakter ${i + 1}`
+                    })),
                     slotNumber: slot.slot_number
                 },
             });
@@ -387,6 +426,7 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             onUpdate(publicUrl, prompt, newHistory, newPromptHistory);
 
             setReferenceImage(null);
+            setCharRefs([]); // Reset Char Refs too? Maybe keep them? For now reset. 
             setPrompt('');
 
         } catch (err: any) {
@@ -509,7 +549,7 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                 </div>
 
                 {(referenceImage || isProcessingRef) && (
-                    <div className="relative inline-block animate-in zoom-in-95 group">
+                    <div className="relative inline-block animate-in zoom-in-95 group mr-4">
                         <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-yellow-500 shadow-xl shadow-yellow-500/20 bg-gray-900 flex items-center justify-center">
                             {isProcessingRef ? (
                                 <Loader2 className="w-6 h-6 animate-spin text-yellow-500" />
@@ -521,6 +561,25 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                             <X className="w-3 h-3" />
                         </button>
                         <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black text-[9px] font-bold px-2 py-0.5 rounded uppercase whitespace-nowrap shadow-lg">Referenz</div>
+                    </div>
+                )}
+
+                {/* Character Reference List */}
+                {charRefs.length > 0 && (
+                    <div className="flex flex-wrap gap-4 mb-4">
+                        {charRefs.map((char, idx) => (
+                            <div key={char.id} className="relative inline-block animate-in zoom-in-95 group">
+                                <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-green-500 shadow-xl shadow-green-500/20 bg-gray-900 flex items-center justify-center">
+                                    <Image src={char.url} alt={`Char ${idx + 1}`} fill className="object-cover" unoptimized />
+                                </div>
+                                <button onClick={() => removeCharRef(char.id)} className="absolute -top-2 -right-2 bg-red-500 p-1.5 rounded-full text-white shadow-lg hover:bg-red-600 transition-colors">
+                                    <X className="w-3 h-3" />
+                                </button>
+                                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-[9px] font-bold px-2 py-0.5 rounded uppercase whitespace-nowrap shadow-lg">
+                                    Charakter {idx + 1}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 
@@ -539,6 +598,9 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                                 className="w-full bg-gray-900 border border-gray-800 rounded-2xl px-6 py-6 pr-32 min-h-[140px] focus:ring-2 focus:ring-yellow-500 outline-none transition-all resize-none shadow-inner"
                             />
                             <div className="absolute right-3 bottom-3 flex gap-2">
+                                <button onClick={() => charInputRef.current?.click()} className="p-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-green-400 hover:text-green-300 transition-colors" title="Charakter hinzufügen">
+                                    {isProcessingChar ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
+                                </button>
                                 <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-gray-400 hover:text-white transition-colors" title="Referenzbild hochladen">
                                     <Upload className="w-5 h-5" />
                                 </button>
@@ -551,6 +613,7 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                                 </button>
                             </div>
                             <input type="file" ref={fileInputRef} onChange={onFileChange} accept="image/*" className="hidden" />
+                            <input type="file" ref={charInputRef} onChange={onCharFileChange} accept="image/*" className="hidden" />
                         </>
                     )}
                 </div>

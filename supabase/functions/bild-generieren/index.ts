@@ -13,7 +13,7 @@ serve(async (req) => {
     }
 
     try {
-        const { prompt, modelType, aspectRatio, referenceImage, slotNumber } = await req.json();
+        const { prompt, modelType, aspectRatio, referenceImage, characterReferences, slotNumber } = await req.json();
 
         if (!prompt) {
             return new Response(JSON.stringify({ error: "Prompt is required" }), {
@@ -125,13 +125,40 @@ Return JSON in this format:
 
         if (referenceImage) {
             const base64Data = referenceImage.split(',')[1] || referenceImage;
+            // Standard Reference Image (Style/Composition)
             parts.push({
                 inlineData: {
                     data: base64Data,
                     mimeType: "image/png"
                 }
             });
-            parts[0].text = `Using the attached image as a visual reference, generate a new image based on this prompt: ${prompt}`;
+            parts[0].text = `Using the LAST attached image as a visual style reference, generate a new image based on this prompt: ${prompt}`;
+        }
+
+        // --- CHARACTER REFERENCES ---
+        if (characterReferences && Array.isArray(characterReferences) && characterReferences.length > 0) {
+            let charRefText = "\n\nSPECIFIC CHARACTER REFERENCES:\nThe following images are specific character designs that MUST be used in the generated image according to their labels.\n";
+
+            // First, append all char images
+            characterReferences.forEach((char: any, index: number) => {
+                const base64Data = char.data.split(',')[1] || char.data;
+
+                // Push Image
+                parts.push({
+                    inlineData: {
+                        data: base64Data,
+                        mimeType: "image/png"
+                    }
+                });
+
+                // Add text label for this image
+                // Note: Gemini 1.5/2.5 Pro usually associates the previous image with the text following it or preceding it.
+                // Best strategy for multi-image: "Image [X] represents Character [X]".
+                // Since 'parts' is an ordered array, we can just append text.
+                charRefText += `- Image #${index + 1 + (referenceImage ? 1 : 0)} provided above is 'Charakter ${index + 1}' (${char.label}). Use this specific visual design when the prompt refers to 'Charakter ${index + 1}'.\n`;
+            });
+
+            parts[0].text += charRefText;
         }
 
         const arSuffix = aspectRatio ? `\n\nEnsure the generated image has an aspect ratio of ${aspectRatio}.` : "";
