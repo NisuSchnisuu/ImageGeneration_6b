@@ -7,7 +7,9 @@ import {
     initializeSlots,
     updateSlotWithUrl,
     uploadImage,
-    clearSlotImagesOnly,
+    updateSlotWithUrl,
+    uploadImage,
+    archiveSlotImages,
     ImageSlot
 } from '@/lib/slots';
 import { compressImage, fileToBase64, urlToBase64 } from '@/lib/imageUtils';
@@ -79,17 +81,22 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
         setShowExitConfirm(true);
     };
 
+    const [isArchiving, setIsArchiving] = useState(false);
+
     const confirmExit = async () => {
         if (!activeSlot) return;
+        setIsArchiving(true);
         try {
-            await clearSlotImagesOnly(activeSlot);
+            await archiveSlotImages(activeSlot);
             setActiveSlot(null);
             setShowExitConfirm(false);
             const data = await getSlots(user.id);
             setSlots(data);
         } catch (err) {
             console.error(err);
-            alert("Fehler beim Aufräumen.");
+            alert("Fehler beim Archivieren.");
+        } finally {
+            setIsArchiving(false);
         }
     };
 
@@ -141,13 +148,26 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                             <p className="text-gray-400">
                                 Du hast alle 3 Versuche verbraucht. Wenn du jetzt gehst, wird die Mappe
                                 <span className="text-red-500 font-bold mx-1">gesperrt</span> und die Bilder
-                                <span className="text-red-500 font-bold mx-1">gelöscht</span>.
+                                <span className="text-yellow-500 font-bold mx-1">archiviert</span>.
                                 <br /><br />
                                 Hast du deine Ergebnisse gespeichert?
                             </p>
                             <div className="flex flex-col gap-3 pt-2">
-                                <button onClick={confirmExit} className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-xl transition-all">Ja, abschließen</button>
-                                <button onClick={() => setShowExitConfirm(false)} className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium py-3 rounded-xl transition-all">Abbrechen</button>
+                                <button
+                                    onClick={confirmExit}
+                                    disabled={isArchiving}
+                                    className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {isArchiving ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                                    {isArchiving ? 'Archiviere...' : 'Ja, abschließen'}
+                                </button>
+                                <button
+                                    onClick={() => setShowExitConfirm(false)}
+                                    disabled={isArchiving}
+                                    className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                                >
+                                    Abbrechen
+                                </button>
                             </div>
                         </div>
                     </div>
