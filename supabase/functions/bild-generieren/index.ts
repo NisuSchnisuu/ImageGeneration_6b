@@ -42,26 +42,30 @@ serve(async (req) => {
         // "Text Request" means: User wants letters, words, signs, typography inside the image.
         // "Safety Violation" means: Violence, hate, sexual content, self-harm, harassment.
         const guardPrompt = `
-You are a barrier for an image generation tool.
+You are a barrier and classifier for an image generation tool.
 User Prompt: "${prompt}"
-Slot: ${slotNumber} (0=Title, others=Content)
+Slot: ${slotNumber} (0=Title, 1=Character, others=Content)
 
 Analyze the request based on these rules:
 
-1. TEXT REQUESTS (Only forbidden if Slot != 0):
+1. TEXT REQUESTS (Forbidden if Slot != 0):
    - Does the user ask for text, words, letters, signs, or typography to be rendered IN the image?
-   - Examples: "Ein Schild auf dem 'Hallo' steht", "The letter A", "Word 'Love'".
-   - If Slot == 0, Text is ALLOWED. Ignore this rule.
+   - If Slot == 0, Text is ALLOWED.
    - If Slot != 0, Text is FORBIDDEN.
 
-2. SAFETY VIOLATIONS (Always Forbidden):
+2. CHARACTER CHECK (Required if Slot == 1):
+   - If Slot == 1, the user MUST describe a living or fictional character (person, animal, creature, robot).
+   - If they describe a landscape, object, vehicle, building, or abstract concept WITHOUT a main character, it is INVALID.
+   - If Slot != 1, this rule is ignored.
+
+3. SAFETY VIOLATIONS (Always Forbidden):
    - Violence, gore, sexual content, hate speech, harassment, self-harm.
 
 Return JSON in this format:
 {
   "allowed": boolean,
-  "blockReason": "NONE" | "TEXT_REQUEST" | "SAFETY_VIOLATION",
-  "reason": "string" // Optional detail
+  "blockReason": "NONE" | "TEXT_REQUEST" | "SAFETY_VIOLATION" | "NOT_A_CHARACTER",
+  "reason": "string"
 }
 `;
 
@@ -85,6 +89,9 @@ Return JSON in this format:
                     // Specific message for Text Requests
                     clientMessage = "Ich erstelle dir keinen Text auf dem Bild, das kannst du selbst besser. Wenn dir das nicht passt, kannst du bei Herrn Maurer motzen 😉.";
                     clientBlockType = "TEXT";
+                } else if (guardResult.blockReason === "NOT_A_CHARACTER") {
+                    clientMessage = "Diese Mappe ist nur für Charaktere reserviert. Bitte beschreibe eine Person, ein Tier oder eine Fantasiefigur.";
+                    clientBlockType = "SAFETY";
                 } else {
                     // Default / Safety
                     clientMessage = "Ich kann das nicht erstellen, das verstösst gegen meine Nutzunsrichtlinien.";
@@ -133,6 +140,10 @@ Return JSON in this format:
         // Wenn es NICHT Slot 0 (Titelbild) ist, verbieten wir Text strikt.
         if (slotNumber !== 0) {
             textRestriction = "\n\nIMPORTANT: Do NOT generate any text, letters, words, or numbers in the image. The image must be purely visual. If the user asks for text, ignore that part of the request. Visual Content ONLY.";
+        }
+
+        if (slotNumber === 1) {
+            textRestriction += "\n\nIMPORTANT: Generate the described character ISOLATED on a simple, solid color background. Do NOT generate complex scenes, landscapes, or detailed backgrounds. The focus must be 100% on the character design.";
         }
 
         parts[0].text += arSuffix + textRestriction;

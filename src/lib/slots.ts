@@ -12,18 +12,27 @@ export interface ImageSlot {
     is_locked: boolean;
 }
 
+export const TOTAL_SLOTS = 17; // 0 (Title) + 1 (Character) + 15 (Mappen)
+
+export function getMaxAttempts(slotNumber: number): number {
+    if (slotNumber === 1) return 5; // Character Slot
+    return 3; // Standard Slot & Title
+}
+
 export async function initializeSlots(userId: string) {
     const { count } = await supabase
         .from('image_slots')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
-    // Wenn wir schon 16 Slots haben (0 bis 15), sind wir fertig
-    if (count && count === 16) return;
+    // Wenn wir schon alle Slots haben, sind wir fertig
+    if (count && count === TOTAL_SLOTS) return;
 
-    // Wir erstellen Slots 0 bis 15.
+    // Wir erstellen Slots 0 bis 16.
     // Slot 0 ist das Titelbild.
-    const slots = Array.from({ length: 16 }, (_, i) => ({
+    // Slot 1 ist Character.
+    // Slot 2-16 sind Mappen 1-15.
+    const slots = Array.from({ length: TOTAL_SLOTS }, (_, i) => ({
         user_id: userId,
         slot_number: i, // Startet bei 0
         attempts_used: 0,
@@ -89,9 +98,11 @@ export async function updateSlotWithUrl(
     prompt: string,
     newAttemptsCount: number,
     updatedImageHistory: string[],
-    updatedPromptHistory: string[]
+    updatedPromptHistory: string[],
+    slotNumber: number // Added slotNumber to calculate lock status dynamically
 ) {
-    const isLocked = newAttemptsCount >= 3;
+    const max = getMaxAttempts(slotNumber);
+    const isLocked = newAttemptsCount >= max;
     // We expect the fully updated arrays to be passed
 
     const { error } = await supabase
@@ -197,7 +208,7 @@ export async function archiveSlotImages(slot: ImageSlot) {
  * Admin Feature: Manuelles Löschen der Bilder (ohne Unlock)
  */
 export async function forceDeleteSlotImages(slot: ImageSlot) {
-    // 1. Storage leeren
+    // 1. Storage sicher leeren
     await deleteFilesInStorage(slot.user_id, slot.slot_number);
 
     // 2. DB: Cleanup via Secure RPC

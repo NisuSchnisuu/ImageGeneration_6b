@@ -8,6 +8,7 @@ import {
     updateSlotWithUrl,
     uploadImage,
     archiveSlotImages,
+    getMaxAttempts,
     ImageSlot
 } from '@/lib/slots';
 import { compressImage, fileToBase64, urlToBase64 } from '@/lib/imageUtils';
@@ -27,7 +28,8 @@ import {
     RefreshCw,
     AlertTriangle,
     Eye,
-    Palette
+    Palette,
+    Ghost
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -71,7 +73,7 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
     }, [user.id]);
 
     const requestBack = () => {
-        if (!activeSlot || activeSlot.attempts_used < 3) {
+        if (!activeSlot || activeSlot.attempts_used < getMaxAttempts(activeSlot.slot_number)) {
             setActiveSlot(null);
             getSlots(user.id).then(setSlots);
             return;
@@ -114,8 +116,8 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                         Übersicht
                     </button>
                     <div className="bg-gray-900/80 px-4 py-2 rounded-full border border-gray-800 text-xs font-mono">
-                        {activeSlot.slot_number === 0 ? 'Titelbild' : `Slot #${activeSlot.slot_number}`} •
-                        Versuche <span className={activeSlot.attempts_used >= 3 ? "text-red-500" : "text-yellow-500"}>{activeSlot.attempts_used}/3</span>
+                        {activeSlot.slot_number === 0 ? 'Titelbild' : activeSlot.slot_number === 1 ? 'Charakter' : `Mappe ${activeSlot.slot_number - 1}`} •
+                        Versuche <span className={activeSlot.attempts_used >= getMaxAttempts(activeSlot.slot_number) ? "text-red-500" : "text-yellow-500"}>{activeSlot.attempts_used}/{getMaxAttempts(activeSlot.slot_number)}</span>
                     </div>
                 </div>
 
@@ -124,15 +126,16 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                     userId={user.id}
                     onUpdate={(url, prompt, history, promptHistory) => {
                         const newAttempts = activeSlot.attempts_used + 1;
+                        const max = getMaxAttempts(activeSlot.slot_number);
                         setActiveSlot({
                             ...activeSlot,
                             last_image_base64: url,
                             attempts_used: newAttempts,
                             history_urls: history,
                             prompt_history: promptHistory,
-                            is_locked: newAttempts >= 3
+                            is_locked: newAttempts >= max
                         });
-                        updateSlotWithUrl(activeSlot.id, url, prompt, newAttempts, history, promptHistory);
+                        updateSlotWithUrl(activeSlot.id, url, prompt, newAttempts, history, promptHistory, activeSlot.slot_number);
                     }}
                 />
 
@@ -144,7 +147,7 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                             </div>
                             <h3 className="text-2xl font-bold text-white">Mappe abschließen?</h3>
                             <p className="text-gray-400">
-                                Du hast alle 3 Versuche verbraucht. Wenn du jetzt gehst, wird die Mappe
+                                Du hast alle {activeSlot ? getMaxAttempts(activeSlot.slot_number) : 3} Versuche verbraucht. Wenn du jetzt gehst, wird die Mappe
                                 <span className="text-red-500 font-bold mx-1">gesperrt</span> und die Bilder
                                 <span className="text-yellow-500 font-bold mx-1">archiviert</span>.
                                 <br /><br />
@@ -188,9 +191,12 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
                 {slots.map((slot) => {
-                    const isLocked = slot.is_locked || slot.attempts_used >= 3;
+                    const maxAttempts = getMaxAttempts(slot.slot_number);
+                    const isLocked = slot.is_locked || slot.attempts_used >= maxAttempts;
                     const isTitleSlot = slot.slot_number === 0;
+                    const isCharacterSlot = slot.slot_number === 1;
                     const previewImage = slot.last_image_base64;
+                    const remainingMappeNumber = slot.slot_number - 1;
 
                     return (
                         <button
@@ -203,7 +209,9 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                                     ? 'border-red-900/50 bg-red-950/20 cursor-not-allowed opacity-75'
                                     : slot.attempts_used > 0
                                         ? 'border-yellow-500/50 shadow-lg shadow-yellow-500/10'
-                                        : 'border-gray-800 bg-gray-900/40 hover:bg-gray-900 hover:border-gray-600'
+                                        : isCharacterSlot
+                                            ? 'border-green-800 bg-green-900/20 hover:bg-green-900/40 hover:border-green-500' // Character Slot Style
+                                            : 'border-gray-800 bg-gray-900/40 hover:bg-gray-900 hover:border-gray-600'
                                 }
                             `}
                         >
@@ -214,7 +222,12 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
                                 </div>
                             ) : (
-                                <div className={`absolute inset-0 opacity-20 ${isTitleSlot ? 'bg-gradient-to-br from-purple-500 to-blue-500' : 'bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-700 via-gray-900 to-black'}`} />
+                                <div className={`absolute inset-0 opacity-20 ${isTitleSlot
+                                    ? 'bg-gradient-to-br from-purple-500 to-blue-500'
+                                    : isCharacterSlot
+                                        ? 'bg-gradient-to-br from-green-500 to-emerald-700'
+                                        : 'bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-700 via-gray-900 to-black'
+                                    }`} />
                             )}
 
                             {/* Icon / Status */}
@@ -222,21 +235,26 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
                                 {isLocked ? (
                                     <Lock className="w-10 h-10 text-red-500 mb-2" />
                                 ) : (
-                                    <div className={`p-4 rounded-2xl ${isTitleSlot ? 'bg-purple-500 text-white' : 'bg-gray-800 text-yellow-500'} group-hover:scale-110 transition-transform duration-300 shadow-xl`}>
-                                        {isTitleSlot ? <ImageIcon className="w-8 h-8" /> : <Palette className="w-8 h-8" />}
+                                    <div className={`p-4 rounded-2xl ${isTitleSlot
+                                        ? 'bg-purple-500 text-white'
+                                        : isCharacterSlot
+                                            ? 'bg-green-600 text-white'
+                                            : 'bg-gray-800 text-yellow-500'
+                                        } group-hover:scale-110 transition-transform duration-300 shadow-xl`}>
+                                        {isTitleSlot ? <ImageIcon className="w-8 h-8" /> : isCharacterSlot ? <Ghost className="w-8 h-8" /> : <Palette className="w-8 h-8" />}
                                     </div>
                                 )}
                             </div>
 
                             <div className="z-10 flex flex-col items-center">
                                 <span className={`font-bold text-lg ${isLocked ? 'text-red-500' : 'text-white'}`}>
-                                    {isTitleSlot ? 'Titelbild' : `Mappe ${slot.slot_number}`}
+                                    {isTitleSlot ? 'Titelbild' : isCharacterSlot ? 'Charakter' : `Mappe ${remainingMappeNumber}`}
                                 </span>
                                 {isLocked ? (
                                     <span className="text-[10px] uppercase tracking-widest text-red-500 font-bold mt-1">Geschlossen</span>
                                 ) : slot.attempts_used > 0 && (
                                     <span className="text-[10px] uppercase tracking-widest text-yellow-500 font-bold mt-1 bg-yellow-900/40 px-2 py-0.5 rounded-full border border-yellow-500/20">
-                                        {slot.attempts_used}/3 Versuche
+                                        {slot.attempts_used}/{maxAttempts} Versuche
                                     </span>
                                 )}
                             </div>
@@ -307,7 +325,7 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
     const [safetyPopup, setSafetyPopup] = useState<{ isOpen: boolean, message: string, type: 'TEXT' | 'SAFETY' }>({ isOpen: false, message: '', type: 'SAFETY' });
 
     const handleGenerate = async () => {
-        if (!prompt.trim() || slot.attempts_used >= 3) return;
+        if (!prompt.trim() || slot.attempts_used >= getMaxAttempts(slot.slot_number)) return;
 
         setLoading(true);
         setError(null);
@@ -505,10 +523,10 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                 )}
 
                 <div className="relative group">
-                    {slot.attempts_used >= 3 ? (
+                    {slot.attempts_used >= getMaxAttempts(slot.slot_number) ? (
                         <div className="w-full bg-red-950/20 border border-red-900/50 text-red-500 rounded-2xl p-8 text-center font-bold animate-pulse">
                             <Lock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            Alle 3 Entwürfe erstellt.
+                            Alle {getMaxAttempts(slot.slot_number)} Entwürfe erstellt.
                         </div>
                     ) : (
                         <>
