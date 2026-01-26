@@ -256,3 +256,18 @@ export async function adminUnlockSlot(slot: ImageSlot) {
 
     if (error) throw error;
 }
+
+/**
+ * Admin Feature: Sperrt einen Slot, ohne Inhalte zu löschen.
+ */
+export async function adminLockSlot(slot: ImageSlot) {
+    const { error } = await supabase
+        .from('image_slots')
+        .update({
+            is_locked: true,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', slot.id);
+
+    if (error) throw error;
+}

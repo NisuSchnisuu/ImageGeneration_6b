@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { adminUnlockSlot, ImageSlot, getSlots, forceDeleteSlotImages, getMaxAttempts } from '@/lib/slots';
+import { adminUnlockSlot, ImageSlot, getSlots, forceDeleteSlotImages, getMaxAttempts, adminLockSlot } from '@/lib/slots';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -87,6 +87,16 @@ function StudentDetailContent() {
             fetchSlots();
         } catch (err) {
             alert("Fehler beim Löschen.");
+        }
+    };
+
+    const handleLock = async (slot: ImageSlot) => {
+        if (!confirm(`Slot ${slot.slot_number} sperren? Der Schüler kann dann nichts mehr ändern.`)) return;
+        try {
+            await adminLockSlot(slot);
+            fetchSlots();
+        } catch (err) {
+            alert("Fehler beim Sperren.");
         }
     };
 
@@ -178,6 +188,16 @@ function StudentDetailContent() {
                                                     Entsperren
                                                 </button>
                                             </>
+                                        )}
+
+                                        {!isLocked && (
+                                            <button
+                                                onClick={() => handleLock(slot)}
+                                                className="flex items-center gap-2 bg-yellow-900/10 hover:bg-yellow-900/20 px-4 py-2 rounded-xl text-xs font-bold text-yellow-500 transition-colors border border-yellow-900/30"
+                                            >
+                                                <Lock className="w-3 h-3" />
+                                                Sperren
+                                            </button>
                                         )}
 
                                         <button
