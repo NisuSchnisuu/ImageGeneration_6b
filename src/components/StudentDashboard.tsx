@@ -353,7 +353,10 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                 throw new Error(errorMsg);
             }
 
-            const webpBlob = await compressImage(data.image, 0.8);
+            // Explicit high quality for generation
+            const webpBlob = await compressImage(data.image, 0.8, 2048);
+            console.log(`Generated Image Size: ${webpBlob.size} bytes`); // Debug Log
+
             const publicUrl = await uploadImage(userId, slot.slot_number, webpBlob);
 
             const newHistory = [...history, publicUrl];
