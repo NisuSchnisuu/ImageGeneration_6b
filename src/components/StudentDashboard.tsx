@@ -285,8 +285,8 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
     const [promptHistory, setPromptHistory] = useState<string[]>(slot.prompt_history || []);
 
     const [loading, setLoading] = useState(false);
-    // Standard für Slot 0 (Titelbild) ist 2:3, sonst 1:1
-    const [aspectRatio, setAspectRatio] = useState(slot.slot_number === 0 ? '2:3' : '1:1');
+    // Standard für Slot 0 (Titelbild) ist 2:3, Slot 1 (Charakter) 3:4, sonst 1:1
+    const [aspectRatio, setAspectRatio] = useState(slot.slot_number === 0 ? '2:3' : slot.slot_number === 1 ? '3:4' : '1:1');
     const [referenceImage, setReferenceImage] = useState<string | null>(null);
     const [isProcessingRef, setIsProcessingRef] = useState(false);
 
