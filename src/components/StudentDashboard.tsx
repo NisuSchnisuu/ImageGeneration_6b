@@ -507,7 +507,7 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                                     {/* Subtiler Aspect Ratio Rahmen */}
                                     <div className="absolute border-2 border-dashed border-white/50 pointer-events-none transition-all duration-300 rounded-sm"
                                         style={{
-                                            width: arH > arW ? 'auto' : '65%',
+                                            width: arW > arH ? '65%' : 'auto',
                                             height: arW > arH ? 'auto' : '65%',
                                             aspectRatio: aspectRatio.replace(':', '/')
                                         }}

@@ -28,21 +28,32 @@ export async function initializeSlots(userId: string) {
     // Wenn wir schon alle Slots haben, sind wir fertig
     if (count && count === TOTAL_SLOTS) return;
 
-    // Wir erstellen Slots 0 bis 16.
-    // Slot 0 ist das Titelbild.
-    // Slot 1 ist Character.
-    // Slot 2-16 sind Mappen 1-15.
-    const slots = Array.from({ length: TOTAL_SLOTS }, (_, i) => ({
-        user_id: userId,
-        slot_number: i, // Startet bei 0
-        attempts_used: 0,
-        is_locked: false,
-        history_urls: [],
-        prompt_history: []
-    }));
+    // Wenn Slots fehlen (z.B. User hat 16, aber wir wollen 17), fügen wir die fehlenden hinzu
+    // Wir holen erst die existierenden Slot-Nummern
+    const { data: existingSlots } = await supabase
+        .from('image_slots')
+        .select('slot_number')
+        .eq('user_id', userId);
 
-    // Upsert ignoriert existierende via Slot_number Constraint (hoffentlich unique Constraint auf user_id + slot_number)
-    await supabase.from('image_slots').upsert(slots, { onConflict: 'user_id, slot_number' });
+    const existingSlotNumbers = new Set(existingSlots?.map(s => s.slot_number) || []);
+
+    const newSlots = [];
+    for (let i = 0; i < TOTAL_SLOTS; i++) {
+        if (!existingSlotNumbers.has(i)) {
+            newSlots.push({
+                user_id: userId,
+                slot_number: i,
+                attempts_used: 0,
+                is_locked: false,
+                history_urls: [],
+                prompt_history: []
+            });
+        }
+    }
+
+    if (newSlots.length > 0) {
+        await supabase.from('image_slots').insert(newSlots);
+    }
 }
 
 export async function getSlots(userId: string) {
