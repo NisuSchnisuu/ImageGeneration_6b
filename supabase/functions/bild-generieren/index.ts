@@ -15,6 +15,7 @@ serve(async (req) => {
     try {
         const { prompt, modelType, aspectRatio, referenceImage, characterReferences, slotNumber } = await req.json();
 
+
         if (!prompt) {
             return new Response(JSON.stringify({ error: "Prompt is required" }), {
                 status: 400,
@@ -24,7 +25,9 @@ serve(async (req) => {
 
         const apiKey = Deno.env.get('GOOGLE_API_KEY');
         if (!apiKey) {
-            return new Response(JSON.stringify({ error: "GOOGLE_API_KEY is not configured" }), {
+            return new Response(JSON.stringify({
+                error: "GOOGLE_API_KEY is not configured"
+            }), {
                 status: 500,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });

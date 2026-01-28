@@ -41,4 +41,4 @@ supabase/seed.sql
 
 # Local Environment
 .env
-
+config.toml

@@ -89,7 +89,12 @@ export default function AdminDashboard() {
                 body: {
                     name: newStudentName,
                     accessCode: accessCode
-                }
+                },
+                // Force use of ANON_KEY (HS256) ONLY in local development to bypass Invalid JWT issue
+                // In production, undefined headers means Supabase uses the user's session token automatically
+                headers: process.env.NODE_ENV === 'development' ? {
+                    Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+                } : undefined
             });
 
             if (funcError) throw funcError;

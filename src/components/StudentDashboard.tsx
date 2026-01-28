@@ -386,6 +386,11 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
                     })),
                     slotNumber: slot.slot_number
                 },
+                // WORKAROUND: Force correct HS256 Anon Key locally to pass Gateway.
+                // In production (NODE_ENV != 'development'), this is undefined and uses the User Session.
+                headers: process.env.NODE_ENV === 'development' ? {
+                    Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+                } : undefined
             });
 
             if (funcError) {
