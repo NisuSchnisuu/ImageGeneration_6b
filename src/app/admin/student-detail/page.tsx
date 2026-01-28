@@ -220,7 +220,7 @@ function StudentDetailContent() {
                                                     <ImageIcon className="w-3 h-3" />
                                                     Gespeicherte Entwürfe
                                                 </h4>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                                                     {slot.history_urls.map((url, idx) => (
                                                         <a href={url} target="_blank" rel="noreferrer" key={idx} className="relative aspect-square bg-black rounded-lg overflow-hidden border border-gray-800 hover:border-yellow-500 transition-colors group">
                                                             <Image src={url} alt={`Entwurf ${idx + 1}`} fill className="object-contain" unoptimized />
