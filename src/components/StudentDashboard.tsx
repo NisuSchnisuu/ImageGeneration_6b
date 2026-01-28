@@ -32,7 +32,8 @@ import {
     Ghost,
     UserPlus,
     XCircle,
-    Users
+    Users,
+    Sparkles
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -279,6 +280,7 @@ export default function StudentDashboard({ user, onLogout }: { user: any, onLogo
 
 function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId: string, onUpdate: (url: string, prompt: string, history: string[], promptHistory: string[]) => void }) {
     const [prompt, setPrompt] = useState('');
+    const [isComic, setIsComic] = useState(true);
 
     // Initialisiere History korrekt aus Props
     const [history, setHistory] = useState<string[]>(slot.history_urls || []);
@@ -377,7 +379,7 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
         try {
             const { data, error: funcError } = await supabase.functions.invoke('bild-generieren', {
                 body: {
-                    prompt,
+                    prompt: isComic ? `${prompt}, im Comicstil` : prompt,
                     aspectRatio,
                     referenceImage,
                     characterReferences: charRefs.map((c, i) => ({
@@ -531,38 +533,51 @@ function EnhancedGenerator({ slot, userId, onUpdate }: { slot: ImageSlot, userId
             </div>
 
             <div className="space-y-6">
-                {/* Neuer Aspect Ratio Selector mit Buttons */}
-                <div className="flex flex-wrap gap-2">
-                    {ratios.map(r => {
-                        const isSelected = aspectRatio === r;
-                        const isTitleFormat = r === '2:3';
-                        const [w, h] = r.split(':').map(Number);
+                {/* Neuer Aspect Ratio Selector mit Buttons & Comic Toggle */}
+                <div className="flex flex-wrap justify-between items-center gap-4">
+                    <div className="flex flex-wrap gap-2">
+                        {ratios.map(r => {
+                            const isSelected = aspectRatio === r;
+                            const isTitleFormat = r === '2:3';
+                            const [w, h] = r.split(':').map(Number);
 
-                        return (
-                            <button
-                                key={r}
-                                onClick={() => setAspectRatio(r)}
-                                className={`
-                                    relative flex items-center gap-2 px-4 py-2 rounded-xl border transition-all
-                                    ${isSelected
-                                        ? (isTitleFormat ? 'bg-purple-600 border-purple-400 text-white shadow-lg shadow-purple-900/50' : 'bg-gray-800 border-yellow-500 text-white shadow-lg')
-                                        : 'bg-gray-900 border-gray-800 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                                    }
-                                `}
-                            >
-                                {/* Mini Preview Box */}
-                                <div className={`w-3 h-3 border rounded-sm ${isSelected ? 'border-current' : 'border-gray-600'}`} style={{ aspectRatio: `${w}/${h}` }} />
+                            return (
+                                <button
+                                    key={r}
+                                    onClick={() => setAspectRatio(r)}
+                                    className={`
+                                        relative flex items-center gap-2 px-4 py-2 rounded-xl border transition-all
+                                        ${isSelected
+                                            ? (isTitleFormat ? 'bg-purple-600 border-purple-400 text-white shadow-lg shadow-purple-900/50' : 'bg-gray-800 border-yellow-500 text-white shadow-lg')
+                                            : 'bg-gray-900 border-gray-800 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                                        }
+                                    `}
+                                >
+                                    <div className={`w-3 h-3 border rounded-sm ${isSelected ? 'border-current' : 'border-gray-600'}`} style={{ aspectRatio: `${w}/${h}` }} />
+                                    <span className="font-bold text-xs">{r}</span>
+                                    {isTitleFormat && (
+                                        <span className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ml-1 ${isSelected ? 'bg-white text-purple-600' : 'bg-gray-800 text-gray-500'}`}>
+                                            Ganze Seite
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
 
-                                <span className="font-bold text-xs">{r}</span>
-
-                                {isTitleFormat && (
-                                    <span className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ml-1 ${isSelected ? 'bg-white text-purple-600' : 'bg-gray-800 text-gray-500'}`}>
-                                        Ganze Seite
-                                    </span>
-                                )}
-                            </button>
-                        );
-                    })}
+                    <button
+                        onClick={() => setIsComic(!isComic)}
+                        className={`
+                            flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border
+                            ${isComic
+                                ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_10px_rgba(37,99,235,0.3)]'
+                                : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
+                            }
+                        `}
+                    >
+                        <Sparkles className={`w-3 h-3 ${isComic ? 'fill-current' : ''}`} />
+                        Comic {isComic ? 'AN' : 'AUS'}
+                    </button>
                 </div>
 
                 {(referenceImage || isProcessingRef) && (
