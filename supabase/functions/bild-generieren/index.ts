@@ -97,7 +97,7 @@ Return JSON in this format:
                     clientBlockType = "SAFETY";
                 } else {
                     // Default / Safety
-                    clientMessage = "Ich kann das nicht erstellen, das verstösst gegen meine Nutzunsrichtlinien.";
+                    clientMessage = "Ich kann das nicht erstellen, das verstösst gegen meine Nutzungsrichtlinien.";
                 }
 
                 return new Response(JSON.stringify({
