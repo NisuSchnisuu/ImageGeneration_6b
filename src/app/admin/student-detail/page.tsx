@@ -30,6 +30,7 @@ function StudentDetailContent() {
     const [slots, setSlots] = useState<ImageSlot[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
+    const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -37,6 +38,7 @@ function StudentDetailContent() {
         const load = async () => {
             // Initial Load
             await fetchData();
+            await fetchCurrentUser();
 
             // Realtime Updates
             const channel = supabase
@@ -54,6 +56,14 @@ function StudentDetailContent() {
         load();
     }, [id]);
 
+    const fetchCurrentUser = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+            setCurrentUserRole(profile?.role || null);
+        }
+    };
+
     const fetchData = async () => {
         const { data: studentData } = await supabase.from('profiles').select('*').eq('id', id).single();
         if (studentData) {
@@ -70,6 +80,7 @@ function StudentDetailContent() {
     };
 
     const handleUnlock = async (slot: ImageSlot) => {
+        if (currentUserRole !== 'admin') return; // Restriction
         if (!confirm(`Slot ${slot.slot_number} wirklich zurücksetzen? Alle Fortschritte gehen verloren.`)) return;
 
         try {
@@ -81,6 +92,7 @@ function StudentDetailContent() {
     };
 
     const handleTrash = async (slot: ImageSlot) => {
+        if (currentUserRole !== 'admin') return; // Restriction
         if (!confirm(`Bilder in Slot ${slot.slot_number} wirklich löschen?`)) return;
         try {
             await forceDeleteSlotImages(slot);
@@ -91,6 +103,7 @@ function StudentDetailContent() {
     };
 
     const handleLock = async (slot: ImageSlot) => {
+        if (currentUserRole !== 'admin') return; // Restriction
         if (!confirm(`Slot ${slot.slot_number} sperren? Der Schüler kann dann nichts mehr ändern.`)) return;
         try {
             await adminLockSlot(slot);
@@ -173,24 +186,28 @@ function StudentDetailContent() {
                                     <div className="flex items-center gap-3">
                                         {isLocked && (
                                             <>
-                                                <button
-                                                    onClick={() => handleTrash(slot)}
-                                                    className="p-2 bg-red-900/10 hover:bg-red-900/20 rounded-xl text-red-500 transition-colors border border-red-900/30 mr-2"
-                                                    title="Bilder endgültig löschen"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleUnlock(slot)}
-                                                    className="flex items-center gap-2 bg-red-900/10 hover:bg-red-900/20 px-4 py-2 rounded-xl text-xs font-bold text-red-400 transition-colors border border-red-900/30"
-                                                >
-                                                    <Unlock className="w-3 h-3" />
-                                                    Entsperren
-                                                </button>
+                                                {currentUserRole === 'admin' && (
+                                                    <button
+                                                        onClick={() => handleTrash(slot)}
+                                                        className="p-2 bg-red-900/10 hover:bg-red-900/20 rounded-xl text-red-500 transition-colors border border-red-900/30 mr-2"
+                                                        title="Bilder endgültig löschen"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                )}
+                                                {currentUserRole === 'admin' && (
+                                                    <button
+                                                        onClick={() => handleUnlock(slot)}
+                                                        className="flex items-center gap-2 bg-red-900/10 hover:bg-red-900/20 px-4 py-2 rounded-xl text-xs font-bold text-red-400 transition-colors border border-red-900/30"
+                                                    >
+                                                        <Unlock className="w-3 h-3" />
+                                                        Entsperren
+                                                    </button>
+                                                )}
                                             </>
                                         )}
 
-                                        {!isLocked && (
+                                        {!isLocked && currentUserRole === 'admin' && (
                                             <button
                                                 onClick={() => handleLock(slot)}
                                                 className="flex items-center gap-2 bg-yellow-900/10 hover:bg-yellow-900/20 px-4 py-2 rounded-xl text-xs font-bold text-yellow-500 transition-colors border border-yellow-900/30"

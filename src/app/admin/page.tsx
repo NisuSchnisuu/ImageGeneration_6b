@@ -24,6 +24,7 @@ import { jsPDF } from 'jspdf';
 export default function AdminDashboard() {
     const [students, setStudents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
     const [newStudentName, setNewStudentName] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export default function AdminDashboard() {
     const [generatingPdf, setGeneratingPdf] = useState(false);
 
     useEffect(() => {
+        fetchCurrentUser();
         fetchStudents();
         fetchSettings();
 
@@ -51,6 +53,14 @@ export default function AdminDashboard() {
 
         return () => { supabase.removeChannel(channel); };
     }, []);
+
+    const fetchCurrentUser = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+            setCurrentUserRole(profile?.role || null);
+        }
+    };
 
     const fetchSettings = async () => {
         const { data } = await supabase.from('app_settings').select('login_locked').single();
@@ -214,13 +224,16 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                        <button
-                            onClick={toggleGlobalLock}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${isGlobalLocked ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-gray-800 hover:bg-gray-700 text-green-400'}`}
-                        >
-                            {isGlobalLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                            {isGlobalLocked ? 'System GESPERRT' : 'System OFFEN'}
-                        </button>
+                        {/* GLOBAL LOCK: Only for main admin */}
+                        {currentUserRole === 'admin' && (
+                            <button
+                                onClick={toggleGlobalLock}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${isGlobalLocked ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-gray-800 hover:bg-gray-700 text-green-400'}`}
+                            >
+                                {isGlobalLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                                {isGlobalLocked ? 'System GESPERRT' : 'System OFFEN'}
+                            </button>
+                        )}
 
                         <button
                             onClick={generatePdf}
@@ -233,30 +246,32 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* Add Student Form */}
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <UserPlus className="w-5 h-5 text-yellow-500" />
-                        Neuen Schüler hinzufügen
-                    </h2>
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <input
-                            type="text"
-                            placeholder="Name des Schülers (z.B. Max Mustermann)"
-                            value={newStudentName}
-                            onChange={(e) => setNewStudentName(e.target.value)}
-                            className="flex-grow bg-black border border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-1 focus:ring-yellow-500"
-                        />
-                        <button
-                            onClick={addStudent}
-                            disabled={actionLoading || !newStudentName}
-                            className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-8 py-3 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                            {actionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
-                            Hinzufügen
-                        </button>
+                {/* Add Student Form: Only for main admin */}
+                {currentUserRole === 'admin' && (
+                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
+                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <UserPlus className="w-5 h-5 text-yellow-500" />
+                            Neuen Schüler hinzufügen
+                        </h2>
+                        <div className="flex flex-col md:flex-row gap-4">
+                            <input
+                                type="text"
+                                placeholder="Name des Schülers (z.B. Max Mustermann)"
+                                value={newStudentName}
+                                onChange={(e) => setNewStudentName(e.target.value)}
+                                className="flex-grow bg-black border border-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-1 focus:ring-yellow-500"
+                            />
+                            <button
+                                onClick={addStudent}
+                                disabled={actionLoading || !newStudentName}
+                                className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-8 py-3 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {actionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
+                                Hinzufügen
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Students List */}
                 <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
@@ -324,13 +339,16 @@ export default function AdminDashboard() {
                                                 >
                                                     <QrCode className="w-5 h-5" />
                                                 </button>
-                                                <button
-                                                    onClick={() => deleteStudent(student.id)}
-                                                    className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-red-500 transition-colors"
-                                                    title="Löschen"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
+                                                {/* DELETE: Only for main admin */}
+                                                {currentUserRole === 'admin' && (
+                                                    <button
+                                                        onClick={() => deleteStudent(student.id)}
+                                                        className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-red-500 transition-colors"
+                                                        title="Löschen"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))

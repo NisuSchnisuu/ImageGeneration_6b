@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "access_code" "text",
     "created_at" timestamp with time zone DEFAULT "timezone"('utc'::"text", "now"()) NOT NULL,
     "is_generating" boolean DEFAULT false,
-    CONSTRAINT "profiles_role_check" CHECK (("role" = ANY (ARRAY['admin'::"text", 'student'::"text"])))
+    CONSTRAINT "profiles_role_check" CHECK (("role" = ANY (ARRAY['admin'::"text", 'student'::"text", 'admin_2'::"text"])))
 );
 
 
@@ -253,6 +253,16 @@ CREATE POLICY "Users can read own profile" ON "public"."profiles" FOR SELECT USI
 
 
 CREATE POLICY "Users manage own slots" ON "public"."image_slots" USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Admin_2 view all profiles" ON "public"."profiles" FOR SELECT USING ((( SELECT "profiles_1"."role"
+   FROM "public"."profiles" "profiles_1"
+  WHERE ("profiles_1"."id" = "auth"."uid"())) = 'admin_2'::"text"));
+
+CREATE POLICY "Admin_2 view all slots" ON "public"."image_slots" FOR SELECT USING ((( SELECT "profiles"."role"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"())) = 'admin_2'::"text"));
 
 
 
@@ -446,6 +456,10 @@ GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "anon";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "service_role";
+
+GRANT ALL ON FUNCTION "public"."get_my_role"() TO "anon";
+GRANT ALL ON FUNCTION "public"."get_my_role"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_my_role"() TO "service_role";
 
 
 

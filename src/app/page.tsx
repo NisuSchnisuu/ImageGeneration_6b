@@ -139,11 +139,14 @@ export default function Home() {
   // --- VIEW LOGIC ---
 
   if (user) {
-    if (user.user_role === 'admin') {
+    if (user.user_role === 'admin' || user.user_role === 'admin_2') {
       return (
         <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-black text-white relative">
           <div className="z-10 text-center space-y-6">
-            <h1 className="text-3xl font-bold text-yellow-500">Hallo Admin!</h1>
+            <h1 className="text-3xl font-bold text-yellow-500">
+              Hallo Admin!
+              {user.user_role === 'admin_2' && <span className="ml-2 text-sm bg-gray-800 text-gray-400 px-2 py-1 rounded-full uppercase tracking-wider border border-gray-700">Read Only</span>}
+            </h1>
             <div className="flex gap-4">
               <Link href="/admin" className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold hover:bg-yellow-400 transition-colors flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5" />
