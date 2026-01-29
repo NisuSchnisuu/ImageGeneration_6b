@@ -51,10 +51,12 @@ Slot: ${slotNumber} (0=Title, 1=Character, others=Content)
 
 Analyze the request based on these rules:
 
-1. TEXT REQUESTS (Forbidden if Slot != 0):
-   - Does the user ask for text, words, letters, signs, or typography to be rendered IN the image?
-   - If Slot == 0, Text is ALLOWED.
-   - If Slot != 0, Text is FORBIDDEN.
+4. TEXT REQUESTS (Forbidden if Slot != 0):
+   - Speech bubbles, comic dialogues, titles, headlines, and long sentences are FORBIDDEN.
+   - However, single letters, small brand names on objects/clothing (e.g. logos), or short isolated words as part of a design are ALLOWED.
+   - If Slot != 0:
+      - Block if: User asks for speech bubbles, conversation, "text saying...", titles, or long written content.
+      - Allow if: User asks for a "letter 'A' on a block", "Nike logo", "brand name on a shirt", "sign with one word".
 
 2. CHARACTER CHECK (Required if Slot == 1):
    - If Slot == 1, the user MUST describe a living or fictional character (person, animal, creature, robot).
@@ -169,7 +171,7 @@ Return JSON in this format:
         let textRestriction = "";
         // Wenn es NICHT Slot 0 (Titelbild) ist, verbieten wir Text strikt.
         if (slotNumber !== 0) {
-            textRestriction = "\n\nIMPORTANT: Do NOT generate any text, letters, words, or numbers in the image. The image must be purely visual. If the user asks for text, ignore that part of the request. Visual Content ONLY.";
+            textRestriction = "\n\nIMPORTANT: Do NOT generate speech bubbles, comic dialogue, titles, captions, or long text sentences. However, you MAY generate single letters, small brand names, logos, or short isolated words if they are part of an object (e.g., text on a shirt, a street sign, a logo). Avoid rendering large blocks of text.";
         }
 
         if (slotNumber === 1) {
